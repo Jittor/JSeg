@@ -81,24 +81,14 @@ The dataset is a Large-scale Dataset for Instance Segmentation (also have segman
 ├── iSAID
 │   ├── train
 │   │   ├── images
-│   │   │   ├── part1.zip
-│   │   │   ├── part2.zip
-│   │   │   ├── part3.zip
-│   │   ├── Semantic_masks
-│   │   │   ├── images.zip
+│   │   ├── mask
 │   ├── val
 │   │   ├── images
-│   │   │   ├── part1.zip
-│   │   ├── Semantic_masks
-│   │   │   ├── images.zip
-│   ├── test
-│   │   ├── images
-│   │   │   ├── part1.zip
-│   │   │   ├── part2.zip
+│   │   ├── mask
 ```
 
 ```shell
-python tools/convert_datasets/isaid.py /path/to/iSAID
+python tools/convert_datasets/isaid.py --src=/path/to/iSAID --tar=/path/to/iSAID_new
 ```
 
-In our default setting (`patch_width`=896, `patch_height`=896,　`overlap_area`=384), it will generate 33978 images for training and 11644 images for validation.
+In our default setting (`patch_width`=800, `patch_height`=800,　`overlap_area`=200)
