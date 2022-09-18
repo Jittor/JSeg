@@ -1,0 +1,11 @@
+jittor
+Pillow
+numpy 
+matplotlib
+pyyaml
+tensorboardX
+opencv-python
+tqdm
+terminaltables
+requests
+scipy

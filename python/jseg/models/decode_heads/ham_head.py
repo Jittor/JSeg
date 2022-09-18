@@ -1,0 +1,208 @@
+import jittor as jt
+from jittor import nn
+import collections
+from jseg.ops import resize
+from jseg.utils.registry import HEADS
+from .decode_head import BaseDecodeHead
+
+
+class _MatrixDecomposition2DBase(nn.Module):
+    def __init__(self, args=dict()):
+        super().__init__()
+
+        self.spatial = args.setdefault('SPATIAL', True)
+
+        self.S = args.setdefault('MD_S', 1)
+        self.D = args.setdefault('MD_D', 512)
+        self.R = args.setdefault('MD_R', 64)
+
+        self.train_steps = args.setdefault('TRAIN_STEPS', 6)
+        self.eval_steps = args.setdefault('EVAL_STEPS', 7)
+
+        self.inv_t = args.setdefault('INV_T', 100)
+        self.eta = args.setdefault('ETA', 0.9)
+
+        self.rand_init = args.setdefault('RAND_INIT', True)
+
+        print('spatial', self.spatial)
+        print('S', self.S)
+        print('D', self.D)
+        print('R', self.R)
+        print('train_steps', self.train_steps)
+        print('eval_steps', self.eval_steps)
+        print('inv_t', self.inv_t)
+        print('eta', self.eta)
+        print('rand_init', self.rand_init)
+
+    def _build_bases(self, B, S, D, R):
+        raise NotImplementedError
+
+    def local_step(self, x, bases, coef):
+        raise NotImplementedError
+
+    @jt.no_grad()
+    def local_inference(self, x, bases):
+        # (B * S, D, N)^T @ (B * S, D, R) -> (B * S, N, R)
+        coef = nn.bmm(x.transpose(1, 2), bases)
+        coef = nn.softmax(self.inv_t * coef, dim=-1)
+
+        steps = self.train_steps if self.is_training() else self.eval_steps
+        for _ in range(steps):
+            bases, coef = self.local_step(x, bases, coef)
+
+        return bases, coef
+
+    def compute_coef(self, x, bases, coef):
+        raise NotImplementedError
+
+    def execute(self, x, return_bases=False):
+        B, C, H, W = x.shape
+
+        # (B, C, H, W) -> (B * S, D, N)
+        if self.spatial:
+            D = C // self.S
+            N = H * W
+            x = x.view(B * self.S, D, N)
+        else:
+            D = H * W
+            N = C // self.S
+            x = x.view(B * self.S, N, D).transpose(1, 2)
+
+        if not self.rand_init and not hasattr(self, 'bases'):
+            bases = self._build_bases(1, self.S, D, self.R)
+            self.register_buffer('bases', bases)
+
+        # (S, D, R) -> (B * S, D, R)
+        if self.rand_init:
+            bases = self._build_bases(B, self.S, D, self.R)
+        else:
+            bases = self.bases.repeat(B, 1, 1)
+
+        bases, coef = self.local_inference(x, bases)
+
+        # (B * S, N, R)
+        coef = self.compute_coef(x, bases, coef)
+
+        # (B * S, D, R) @ (B * S, N, R)^T -> (B * S, D, N)
+        x = nn.bmm(bases, coef.transpose(1, 2))
+
+        # (B * S, D, N) -> (B, C, H, W)
+        if self.spatial:
+            x = x.view(B, C, H, W)
+        else:
+            x = x.transpose(1, 2).view(B, C, H, W)
+
+        # (B * H, D, R) -> (B, H, N, D)
+        bases = bases.view(B, self.S, D, self.R)
+
+        return x
+
+
+class NMF2D(_MatrixDecomposition2DBase):
+    def __init__(self, args=dict()):
+        super().__init__(args)
+
+        self.inv_t = 1
+
+    def _build_bases(self, B, S, D, R):
+        bases = jt.rand((B * S, D, R))
+
+        bases = jt.normalize(bases, dim=1)
+
+        return bases
+
+    def local_step(self, x, bases, coef):
+        # (B * S, D, N)^T @ (B * S, D, R) -> (B * S, N, R)
+        numerator = nn.bmm(x.transpose(1, 2), bases)
+        # (B * S, N, R) @ [(B * S, D, R)^T @ (B * S, D, R)] -> (B * S, N, R)
+        denominator = nn.bmm(coef, nn.bmm(bases.transpose(1, 2), bases))
+        # Multiplicative Update
+        coef = coef * numerator / (denominator + 1e-6)
+
+        # (B * S, D, N) @ (B * S, N, R) -> (B * S, D, R)
+        numerator = nn.bmm(x, coef)
+        # (B * S, D, R) @ [(B * S, N, R)^T @ (B * S, N, R)] -> (B * S, D, R)
+        denominator = nn.bmm(bases, nn.bmm(coef.transpose(1, 2), coef))
+        # Multiplicative Update
+        bases = bases * numerator / (denominator + 1e-6)
+
+        return bases, coef
+
+    def compute_coef(self, x, bases, coef):
+        # (B * S, D, N)^T @ (B * S, D, R) -> (B * S, N, R)
+        numerator = nn.bmm(x.transpose(1, 2), bases)
+        # (B * S, N, R) @ (B * S, D, R)^T @ (B * S, D, R) -> (B * S, N, R)
+        denominator = nn.bmm(coef, nn.bmm(bases.transpose(1, 2), bases))
+        # multiplication update
+        coef = coef * numerator / (denominator + 1e-6)
+
+        return coef
+
+
+class Hamburger(nn.Module):
+    def __init__(self, ham_channels=512, ham_kwargs=dict(), **kwargs):
+        super().__init__()
+
+        self.ham_in = nn.Sequential(
+            collections.OrderedDict([('conv',
+                                      nn.Conv2d(ham_channels, ham_channels,
+                                                1))]))
+
+        self.ham = NMF2D(ham_kwargs)
+
+        self.ham_out = nn.Sequential(
+            collections.OrderedDict([('conv',
+                                      nn.Conv2d(ham_channels, ham_channels,
+                                                1)),
+                                     ('gn', nn.GroupNorm(32, ham_channels))]))
+
+    def execute(self, x):
+        enjoy = self.ham_in(x)
+        enjoy = nn.relu(enjoy)
+        enjoy = self.ham(enjoy)
+        enjoy = self.ham_out(enjoy)
+        ham = nn.relu(x + enjoy)
+
+        return ham
+
+
+@HEADS.register_module()
+class LightHamHead(BaseDecodeHead):
+    def __init__(self, ham_channels=512, ham_kwargs=dict(), **kwargs):
+        super(LightHamHead, self).__init__(input_transform='multiple_select',
+                                           **kwargs)
+        self.ham_channels = ham_channels
+
+        self.squeeze = nn.Sequential(
+            collections.OrderedDict([('conv',
+                                      nn.Conv2d(sum(self.in_channels),
+                                                self.ham_channels, 1)),
+                                     ('gn', nn.GroupNorm(32, ham_channels)),
+                                     ('relu', nn.ReLU())]))
+        self.hamburger = Hamburger(ham_channels, ham_kwargs, **kwargs)
+
+        self.align = nn.Sequential(
+            collections.OrderedDict([('conv',
+                                      nn.Conv2d(self.ham_channels,
+                                                self.channels, 1)),
+                                     ('gn', nn.GroupNorm(32, ham_channels)),
+                                     ('relu', nn.ReLU())]))
+
+    def execute(self, inputs):
+        inputs = self._transform_inputs(inputs)
+
+        inputs = [
+            resize(level,
+                   size=inputs[0].shape[2:],
+                   mode='bilinear',
+                   align_corners=self.align_corners) for level in inputs
+        ]
+
+        inputs = jt.concat(inputs, dim=1)
+        x = self.squeeze(inputs)
+
+        x = self.hamburger(x)
+
+        output = self.align(x)
+        output = self.cls_seg(output)
+        return output
