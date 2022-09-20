@@ -5,7 +5,7 @@
 
 
 ## Introduction
-JSeg is an Semantic segmentation toolbox based on [MMSegmentation](https://github.com/open-mmlab/mmsegmentation), [Jittor](https://github.com/Jittor/jittor) and [JDet](https://github.com/Jittor/JDet)
+JSeg is a Semantic segmentation toolbox based on [MMSegmentation](https://github.com/open-mmlab/mmsegmentation), [Jittor](https://github.com/Jittor/jittor) and [JDet](https://github.com/Jittor/JDet)
 
 <!-- **Features**
 - Automatic compilation. Our framwork is based on Jittor, which means we don't need to Manual compilation for these code with CUDA and C++. -->
