@@ -4,7 +4,7 @@
 
 The repository contains official Jittor implementations of training and evaluation codes and pre-trained models for [**SegNext**](). 
 
-The paper is in [**Temp Link**](resources/paper.pdf).
+The paper is in [**Here**](https://arxiv.org/pdf/2209.08575.pdf).
 
 **Notes**: ImageNet Pre-trained models can be found in Jittor Hub [mscan_t](https://cg.cs.tsinghua.edu.cn/jittor/assets/build/checkpoints/mscan_t.pkl),[mscan_s](https://cg.cs.tsinghua.edu.cn/jittor/assets/build/checkpoints/mscan_s.pkl), [mscan_b](https://cg.cs.tsinghua.edu.cn/jittor/assets/build/checkpoints/mscan_b.pkl), [mscan_l](https://cg.cs.tsinghua.edu.cn/jittor/assets/build/checkpoints/mscan_l.pkl).
 
