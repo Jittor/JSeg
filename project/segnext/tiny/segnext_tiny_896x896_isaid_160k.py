@@ -1,25 +1,30 @@
 # model settings
 model = dict(
     type='EncoderDecoder',
-    pretrained='jittorhub://mit_b0.pkl',
-    backbone=dict(type='mit_b0'),
-    decode_head=dict(type='SegFormerHead',
-                     in_channels=[32, 64, 160, 256],
-                     in_index=[0, 1, 2, 3],
-                     feature_strides=[4, 8, 16, 32],
-                     channels=128,
+    pretrained='jittorhub://mscan_t.pkl',
+    backbone=dict(type='MSCAN',
+                  embed_dims=[32, 64, 160, 256],
+                  mlp_ratios=[8, 8, 4, 4],
+                  drop_rate=0.0,
+                  drop_path_rate=0.1,
+                  depths=[3, 3, 5, 2]),
+    decode_head=dict(type='LightHamHead',
+                     in_channels=[64, 160, 256],
+                     in_index=[1, 2, 3],
+                     channels=256,
                      dropout_ratio=0.1,
                      num_classes=16,
                      align_corners=False,
-                     decoder_params=dict(embed_dim=256),
+                     decoder_params=dict(),
                      loss_decode=dict(type='CrossEntropyLoss',
                                       use_sigmoid=False,
-                                      loss_weight=1.0)),
+                                      loss_weight=1.0),
+                     ham_channels=256,
+                     ham_kwargs=dict(MD_R=16)),
     # model training and testing settings
     train_cfg=dict(),
     test_cfg=dict(mode='whole'))
 
-# dataset settings
 dataset_type = 'iSAIDDataset'
 data_root = 'datasets/iSAID_Patches'
 
@@ -28,7 +33,6 @@ img_norm_cfg = dict(mean=[123.675, 116.28, 103.53],
                     to_rgb=True)
 
 crop_size = (896, 896)
-
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations'),
@@ -60,7 +64,7 @@ test_pipeline = [
 dataset = dict(
     train=dict(type=dataset_type,
                batch_size=16,
-               num_workers=4,
+               num_workers=8,
                shuffle=True,
                drop_last=False,
                data_root=data_root,

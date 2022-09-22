@@ -26,3 +26,11 @@ The paper is in [**Here**](https://arxiv.org/pdf/2209.08575.pdf).
 |  SegNeXt  |     MSCAN-B  | IN-1K  | 160K |  82.6/83.8 | 28M | 276G | [config](base/segnext_base_1024x1024_cityscapes_160k.py)  | [Jittor Hub](https://cg.cs.tsinghua.edu.cn/jittor/assets/build/checkpoints/segnext_base_1024x1024_city_160k.pkl) |
 |  SegNeXt  |     MSCAN-L  | IN-1K  | 160K |  83.2/83.9 | 49M | 578G | [config](large/segnext_large_1024x1024_cityscapes_160k.py)  | [Jittor Hub](https://cg.cs.tsinghua.edu.cn/jittor/assets/build/checkpoints/segnext_large_1024x1024_city_160k.pkl) |
 
+### iSAID
+
+|   Method  |    Backbone     |  Pretrained | Iters | mIoU(ss) | Params | FLOPs  | Config | Download  |
+| :-------: | :-------------: | :-----: | :---: | :--: | :----: | :----: | :----: | :-------: |
+|  SegNeXt  |     MSCAN-T  | IN-1K | 160K | 68.3 | 4M | - | [config](tiny/segnext_tiny_896x896_isaid_160k.py)  | [Jittor Hub](https://cg.cs.tsinghua.edu.cn/jittor/assets/build/checkpoints/segnext_tiny_896x896_isaid_160k.pkl) |
+|  SegNeXt  |     MSCAN-S | IN-1K  | 160K |  68.8  | 14M | - | [config](small/segnext_small_896x896_isaid_160k.py)  | [Jittor Hub](https://cg.cs.tsinghua.edu.cn/jittor/assets/build/checkpoints/segnext_small_896x896_isaid_160k.pkl) |
+|  SegNeXt  |     MSCAN-B  | IN-1K  | 160K |  69.9 | 28M | - | [config](base/segnext_base_896x896_isaid_160k.py)  | [Jittor Hub](https://cg.cs.tsinghua.edu.cn/jittor/assets/build/checkpoints/segnext_base_896x896_isaid_160k.pkl) |
+|  SegNeXt  |     MSCAN-L  | IN-1K  | 160K |  70.3 | 49M | - | [config](large/segnext_large_896x896_isaid_160k.py)  | [Jittor Hub](https://cg.cs.tsinghua.edu.cn/jittor/assets/build/checkpoints/segnext_large_896x896_isaid_160k.pkl) |

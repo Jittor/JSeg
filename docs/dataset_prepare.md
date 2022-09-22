@@ -77,18 +77,65 @@ The data annotations could be download from [iSAID](https://captain-whu.github.i
 
 The dataset is a Large-scale Dataset for Instance Segmentation (also have segmantic segmentation) in Aerial Images.
 
+Original file structure
 ```
 ├── iSAID
 │   ├── train
 │   │   ├── images
-│   │   ├── mask
+│   │   │   ├── part1.zip
+│   │   │   ├── part2.zip
+│   │   │   ├── part3.zip
+│   │   ├── Semantic_masks
+│   │   │   ├── images.zip
 │   ├── val
 │   │   ├── images
-│   │   ├── mask
+│   │   │   ├── part1.zip
+│   │   ├── Semantic_masks
+│   │   │   ├── images.zip
+│   ├── test
+│   │   ├── images
+│   │   │   ├── part1.zip
+│   │   │   ├── part2.zip
+```
+
+After decompression
+```
+├── iSAID
+│   ├── train
+│   │   ├── images
+│   │   │   ├── *.png
+│   │   ├── Semantic_masks
+│   │   │   ├── *_instance_color_RGB.png
+│   ├── val
+│   │   ├── images
+│   │   │   ├── *.png
+│   │   ├── Semantic_masks
+│   │   │   ├── *_instance_color_RGB.png
+│   ├── test
+│   │   ├── images
+│   │   │   ├── *.png
+```
+
+Processed file structure
+```
+├── iSAID_Patches
+│   ├── train
+│   │   ├── images
+│   │   │   ├── *_sub_img.png
+│   │   ├── Semantic_masks
+│   │   │   ├── *_sub_img_instance_color_RGB.png
+│   ├── val
+│   │   ├── images
+│   │   │   ├── *_sub_img.png
+│   │   ├── Semantic_masks
+│   │   │   ├── *_sub_img_instance_color_RGB.png
+│   ├── test
+│   │   ├── images
+│   │   │   ├── *_sub_img.png
 ```
 
 ```shell
-python tools/convert_datasets/isaid.py --src=/path/to/iSAID --tar=/path/to/iSAID_new
+python tools/convert_datasets/isaid.py --src=./datasets/iSAID --target=./datasets/iSAID_Patches
 ```
 
-In our default setting (`patch_width`=800, `patch_height`=800,　`overlap_area`=200)
+In our default setting (`patch_width`=800, `patch_height`=800,　`overlap_area`=200), it will generate 28029 images for training and 9512 images for validation.

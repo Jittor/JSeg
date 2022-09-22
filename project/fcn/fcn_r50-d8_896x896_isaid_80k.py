@@ -40,7 +40,7 @@ model = dict(
 
 # dataset settings
 dataset_type = 'iSAIDDataset'
-data_root = '/home/gmh/dataset/iSAID_patches'
+data_root = 'datasets/iSAID_Patches'
 
 img_norm_cfg = dict(mean=[123.675, 116.28, 103.53],
                     std=[58.395, 57.12, 57.375],
@@ -84,7 +84,7 @@ dataset = dict(
                drop_last=False,
                data_root=data_root,
                img_dir='train/images',
-               ann_dir='train/masks_new',
+               ann_dir='train/Semantic_masks',
                pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
@@ -95,7 +95,7 @@ dataset = dict(
         drop_last=False,
         data_root=data_root,
         img_dir='val/images',
-        ann_dir='val/masks_new',
+        ann_dir='val/Semantic_masks',
         pipeline=test_pipeline))
 
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0005)
