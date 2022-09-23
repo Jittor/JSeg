@@ -445,6 +445,9 @@ class SwinTransformer(nn.Module):
                 elif isinstance(m, nn.LayerNorm):
                     constant_init(m, val=1.0, bias=0.)
         else:
+            use_shape = False
+            if 'pkl' in pretrained:
+                use_shape = True
             ckpt = jt.load(pretrained)
             if 'state_dict' in ckpt:
                 _state_dict = ckpt['state_dict']
@@ -467,8 +470,12 @@ class SwinTransformer(nn.Module):
             # reshape absolute position embedding
             if state_dict.get('absolute_pos_embed') is not None:
                 absolute_pos_embed = state_dict['absolute_pos_embed']
-                N1, L, C1 = absolute_pos_embed.size()
-                N2, C2, H, W = self.absolute_pos_embed.size()
+                if use_shape:
+                    N1, L, C1 = absolute_pos_embed.shape
+                    N2, C2, H, W = self.absolute_pos_embed.shape
+                else:
+                    N1, L, C1 = absolute_pos_embed.size()
+                    N2, C2, H, W = self.absolute_pos_embed.size()
                 if N1 != N2 or C1 != C2 or L != H * W:
                     print('Error in loading absolute_pos_embed, pass')
                 else:
@@ -483,8 +490,12 @@ class SwinTransformer(nn.Module):
             for table_key in relative_position_bias_table_keys:
                 table_pretrained = state_dict[table_key]
                 table_current = self.state_dict()[table_key]
-                L1, nH1 = table_pretrained.size()
-                L2, nH2 = table_current.size()
+                if use_shape:
+                    L1, nH1 = table_pretrained.shape
+                    L2, nH2 = table_current.shape
+                else:
+                    L1, nH1 = table_pretrained.size()
+                    L2, nH2 = table_current.size()
                 if nH1 != nH2:
                     print(f'Error in loading {table_key}, pass')
                 elif L1 != L2:

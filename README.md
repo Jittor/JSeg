@@ -106,6 +106,7 @@ if __name__ == "__main__":
 
 ### Supported backbones:
 - :heavy_check_mark: ResNet (CVPR'2016)
+- :heavy_check_mark: [Swin Transformer (ICCV'2021)](project/swin)
 
 ### Supported methods:
 - :heavy_check_mark: [FCN (CVPR'2015/TPAMI'2017)](project/fcn)
