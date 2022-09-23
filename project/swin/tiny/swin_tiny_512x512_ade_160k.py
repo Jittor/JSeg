@@ -73,7 +73,7 @@ test_pipeline = [
 ]
 dataset = dict(
     train=dict(type=dataset_type,
-               batch_size=2,
+               batch_size=16,
                num_workers=4,
                shuffle=True,
                drop_last=False,
