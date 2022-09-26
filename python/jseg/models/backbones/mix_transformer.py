@@ -4,6 +4,8 @@ from functools import partial
 from jseg.ops.cnn import DropPath
 from jseg.utils import to_2tuple
 from jseg.utils.registry import BACKBONES
+import math
+from jseg.utils.weight_init import trunc_normal_init, normal_init, constant_init
 
 
 class Mlp(nn.Module):
@@ -272,7 +274,21 @@ class MixVisionTransformer(nn.Module):
         self.norm4 = norm_layer(embed_dims[3])
 
     def init_weights(self, pretrained=None):
-        if isinstance(pretrained, str):
+        if pretrained is None:
+            for m in self.modules():
+                if isinstance(m, nn.Linear):
+                    trunc_normal_init(m, std=.02, bias=0.)
+                elif isinstance(m, nn.LayerNorm):
+                    constant_init(m, val=1.0, bias=0.)
+                elif isinstance(m, nn.Conv2d):
+                    fan_out = m.kernel_size[0] * m.kernel_size[
+                        1] * m.out_channels
+                    fan_out //= m.groups
+                    normal_init(m,
+                                mean=0,
+                                std=math.sqrt(2.0 / fan_out),
+                                bias=0)
+        elif isinstance(pretrained, str):
             self.load_parameters(jt.load(pretrained))
 
     def execute_features(self, x):
