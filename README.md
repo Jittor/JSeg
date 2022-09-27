@@ -1,6 +1,12 @@
 # JSeg
 
-## News:
+**09/27/2022**
+
+**[ External Attention ](python/jseg/ops/external_attention.py) have been accepted by TPAMI.**
+
+
+**09/19/2022**
+
 **[SegNeXt ](project/segnext) have been accepted by NeurIPS'2022.**
 
 
