@@ -1,7 +1,6 @@
 from typing import Sequence
 import math
 from jittor import nn
-from jseg.ops.cnn import DropPath
 from jseg.utils import to_2tuple
 
 
@@ -248,7 +247,7 @@ class FFN(nn.Module):
         layers.append(nn.Linear(feedexecute_channels, embed_dims))
         layers.append(nn.Dropout(ffn_drop))
         self.layers = nn.Sequential(*layers)
-        self.dropout_layer = DropPath(drop_prob)
+        self.dropout_layer = nn.DropPath(drop_prob)
         self.add_identity = add_identity
 
     def execute(self, x, identity=None):

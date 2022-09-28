@@ -6,7 +6,6 @@ from jittor import nn
 from jseg.utils import to_2tuple
 from jseg.utils.registry import BACKBONES
 from jseg.utils.weight_init import trunc_normal_init, constant_init, trunc_normal_
-from jseg.ops.cnn import DropPath
 from ..utils.embed import PatchEmbed, PatchMerging, FFN
 
 
@@ -120,7 +119,7 @@ class ShiftWindowMSA(nn.Module):
                                attn_drop_rate=attn_drop_rate,
                                proj_drop_rate=proj_drop_rate)
 
-        self.drop = DropPath(drop_prob)
+        self.drop = nn.DropPath(drop_prob)
 
     def execute(self, query, hw_shape):
         B, L, C = query.shape

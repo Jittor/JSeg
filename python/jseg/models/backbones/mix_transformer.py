@@ -1,7 +1,6 @@
 import jittor as jt
 from jittor import nn
 from functools import partial
-from jseg.ops.cnn import DropPath
 from jseg.utils import to_2tuple
 from jseg.utils.registry import BACKBONES
 import math
@@ -117,7 +116,7 @@ class Block(nn.Module):
                               proj_drop=drop,
                               sr_ratio=sr_ratio)
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
-        self.drop_path = DropPath(
+        self.drop_path = nn.DropPath(
             drop_path) if drop_path > 0. else nn.Identity()
         self.norm2 = norm_layer(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)

@@ -1,7 +1,6 @@
 import math
 import jittor as jt
 from jittor import nn
-from jseg.ops.cnn import DropPath
 from jseg.utils import to_2tuple
 from jseg.utils.registry import BACKBONES
 from jseg.utils.weight_init import trunc_normal_init, normal_init, constant_init
@@ -130,7 +129,7 @@ class Block(nn.Module):
         super().__init__()
         self.norm1 = nn.BatchNorm2d(dim)
         self.attn = SpatialAttention(dim)
-        self.drop_path = DropPath(
+        self.drop_path = nn.DropPath(
             drop_path) if drop_path > 0. else nn.Identity()
         self.norm2 = nn.BatchNorm2d(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)

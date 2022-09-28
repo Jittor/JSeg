@@ -157,7 +157,7 @@ class EncoderDecoder(BaseSegmentor):
         assert (count_mat == 0).sum() == 0
         preds = preds / count_mat
         if rescale:
-            resize_shape = img_meta['img_shape'][:2].numpy()
+            resize_shape = img_meta['img_shape'][:2]
             preds = preds[:, :, :resize_shape[0], :resize_shape[1]]
             preds = resize(preds,
                            size=img_meta['ori_shape'][:2],
@@ -169,7 +169,7 @@ class EncoderDecoder(BaseSegmentor):
     def whole_inference(self, img, img_meta, rescale):
         seg_logit = self.encode_decode(img, img_meta)
         if rescale:
-            resize_shape = img_meta['img_shape'][:2].numpy()
+            resize_shape = img_meta['img_shape'][:2]
             seg_logit = seg_logit[:, :, :resize_shape[0], :resize_shape[1]]
             size = img_meta['ori_shape'][:2]
             seg_logit = resize(seg_logit,
