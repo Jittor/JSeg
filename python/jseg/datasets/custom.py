@@ -2,20 +2,20 @@ import jittor as jt
 from jittor.dataset import Dataset
 import numpy as np
 from jseg.utils.registry import DATASETS
-from PIL import Image
-import os
+import warnings
 import os.path as osp
-from functools import reduce
-from terminaltables import AsciiTable
+from collections import OrderedDict
+from prettytable import PrettyTable
 from jseg.utils.general import is_list_of, scandir, list_from_file
-from jseg.utils.metrics import eval_metrics
-from .pipelines import Compose
+from jseg.utils.metrics import intersect_and_union, pre_eval_to_metrics, eval_metrics
+from .pipelines import Compose, LoadAnnotations
 
 
 @DATASETS.register_module()
 class CustomDataset(Dataset):
 
     CLASSES = None
+
     PALETTE = None
 
     def __init__(self,
@@ -35,6 +35,7 @@ class CustomDataset(Dataset):
                  reduce_zero_label=False,
                  classes=None,
                  palette=None,
+                 gt_seg_map_loader_cfg=None,
                  buffer_size=536870912,
                  stop_grad=True,
                  keep_numpy_array=False,
@@ -61,6 +62,13 @@ class CustomDataset(Dataset):
         self.label_map = None
         self.CLASSES, self.PALETTE = self.get_classes_and_palette(
             classes, palette)
+        self.gt_seg_map_loader = LoadAnnotations(
+        ) if gt_seg_map_loader_cfg is None else LoadAnnotations(
+            **gt_seg_map_loader_cfg)
+
+        if test_mode:
+            assert self.CLASSES is not None, \
+                '`cls.CLASSES` or `classes` should be specified when testing'
 
         # join paths if data_root is specified
         if self.data_root is not None:
@@ -99,6 +107,7 @@ class CustomDataset(Dataset):
                     seg_map = img.replace(img_suffix, seg_map_suffix)
                     img_info['ann'] = dict(seg_map=seg_map)
                 img_infos.append(img_info)
+            img_infos = sorted(img_infos, key=lambda x: x['filename'])
         if jt.rank == 0:
             print(f'Loaded {len(img_infos)} images')
         return img_infos
@@ -132,19 +141,59 @@ class CustomDataset(Dataset):
         self.pre_pipeline(results)
         return self.pipeline(results)
 
-    def format_results(self, results, **kwargs):
-        pass
+    def format_results(self, results, imgfile_prefix, indices=None, **kwargs):
+        raise NotImplementedError
 
-    def get_gt_seg_maps(self, efficient_test=False):
-        gt_seg_maps = []
-        for img_info in self.img_infos:
-            seg_map = osp.join(self.ann_dir, img_info['ann']['seg_map'])
-            if efficient_test:
-                gt_seg_map = seg_map
-            else:
-                gt_seg_map = Image.open(seg_map)
-            gt_seg_maps.append(gt_seg_map)
-        return gt_seg_maps
+    def get_gt_seg_map_by_idx(self, index):
+        """Get one ground truth segmentation map for evaluation."""
+        ann_info = self.get_ann_info(index)
+        results = dict(ann_info=ann_info)
+        self.pre_pipeline(results)
+        self.gt_seg_map_loader(results)
+        return results['gt_semantic_seg']
+
+    def get_gt_seg_maps(self, efficient_test=None):
+        """Get ground truth segmentation maps for evaluation."""
+        if efficient_test is not None:
+            warnings.warn(
+                'DeprecationWarning: ``efficient_test`` has been deprecated '
+                'since MMSeg v0.16, the ``get_gt_seg_maps()`` is CPU memory '
+                'friendly by default. ')
+
+        for idx in range(len(self)):
+            ann_info = self.get_ann_info(idx)
+            results = dict(ann_info=ann_info)
+            self.pre_pipeline(results)
+            self.gt_seg_map_loader(results)
+            yield results['gt_semantic_seg']
+
+    def pre_eval(self, preds, indices):
+
+        # In order to compat with batch inference
+        if not isinstance(indices, list):
+            indices = [indices]
+        if not isinstance(preds, list):
+            preds = [preds]
+
+        pre_eval_results = []
+
+        for pred, index in zip(preds, indices):
+            seg_map = self.get_gt_seg_map_by_idx(index)
+            pre_eval_results.append(
+                intersect_and_union(
+                    pred,
+                    seg_map,
+                    len(self.CLASSES),
+                    self.ignore_index,
+                    # as the labels has been converted when dataset initialized
+                    # in `get_palette_for_custom_classes ` this `label_map`
+                    # should be `dict()`, see
+                    # https://github.com/open-mmlab/mmsegmentation/issues/1415
+                    # for more ditails
+                    label_map=dict(),
+                    reduce_zero_label=self.reduce_zero_label))
+
+        return pre_eval_results
 
     def get_classes_and_palette(self, classes=None, palette=None):
         if classes is None:
@@ -161,7 +210,7 @@ class CustomDataset(Dataset):
             raise ValueError(f'Unsupported type {type(classes)} of classes.')
 
         if self.CLASSES:
-            if not set(classes).issubset(self.CLASSES):
+            if not set(class_names).issubset(self.CLASSES):
                 raise ValueError('classes is not a subset of CLASSES.')
 
             # dictionary, its keys are the old label ids and its values
@@ -172,7 +221,7 @@ class CustomDataset(Dataset):
                 if c not in class_names:
                     self.label_map[i] = -1
                 else:
-                    self.label_map[i] = classes.index(c)
+                    self.label_map[i] = class_names.index(c)
 
         palette = self.get_palette_for_custom_classes(class_names, palette)
 
@@ -190,7 +239,16 @@ class CustomDataset(Dataset):
 
         elif palette is None:
             if self.PALETTE is None:
+                # Get random state before set seed, and restore
+                # random state later.
+                # It will prevent loss of randomness, as the palette
+                # may be different in each iteration if not specified.
+                # See: https://github.com/open-mmlab/mmdetection/issues/5844
+                state = np.random.get_state()
+                np.random.seed(42)
+                # random palette
                 palette = np.random.randint(0, 255, size=(len(class_names), 3))
+                np.random.set_state(state)
             else:
                 palette = self.PALETTE
 
@@ -200,60 +258,74 @@ class CustomDataset(Dataset):
                  results,
                  metric='mIoU',
                  logger=None,
-                 efficient_test=False,
+                 gt_seg_maps=None,
                  **kwargs):
         if isinstance(metric, str):
             metric = [metric]
-        allowed_metrics = ['mIoU', 'mDice', 'fwIoU']
+        allowed_metrics = ['mIoU', 'mDice', 'mFscore']
         if not set(metric).issubset(set(allowed_metrics)):
             raise KeyError('metric {} is not supported'.format(metric))
         eval_results = {}
-        gt_seg_maps = self.get_gt_seg_maps(efficient_test)
-        if self.CLASSES is None:
-            num_classes = len(
-                reduce(np.union1d, [np.unique(_) for _ in gt_seg_maps]))
-        else:
+
+        if is_list_of(results, np.ndarray) or is_list_of(results, str):
+            if gt_seg_maps is None:
+                gt_seg_maps = self.get_gt_seg_maps()
             num_classes = len(self.CLASSES)
-        ret_metrics = eval_metrics(results,
-                                   gt_seg_maps,
-                                   num_classes,
-                                   self.ignore_index,
-                                   metric,
-                                   label_map=self.label_map,
-                                   reduce_zero_label=self.reduce_zero_label)
-        class_table_data = [['Class'] + [m[1:] for m in metric] + ['Acc']]
+            ret_metrics = eval_metrics(
+                results,
+                gt_seg_maps,
+                num_classes,
+                self.ignore_index,
+                metric,
+                label_map=dict(),
+                reduce_zero_label=self.reduce_zero_label)
+        else:
+            ret_metrics = pre_eval_to_metrics(results, metric)
         if self.CLASSES is None:
             class_names = tuple(range(num_classes))
         else:
             class_names = self.CLASSES
-        ret_metrics_round = [
-            np.round(ret_metric * 100, 2) for ret_metric in ret_metrics
-        ]
-        for i in range(num_classes):
-            class_table_data.append([class_names[i]] +
-                                    [m[i] for m in ret_metrics_round[2:]] +
-                                    [ret_metrics_round[1][i]])
-        summary_table_data = [['Scope'] +
-                              ['m' + head
-                               for head in class_table_data[0][1:]] + ['aAcc']]
-        ret_metrics_mean = [
-            np.round(np.nanmean(ret_metric) * 100, 2)
-            for ret_metric in ret_metrics
-        ]
-        summary_table_data.append(['global'] + ret_metrics_mean[2:] +
-                                  [ret_metrics_mean[1]] +
-                                  [ret_metrics_mean[0]])
-        table = AsciiTable(class_table_data)
-        logger.log({'per class results:': '\n' + table.table})
-        table = AsciiTable(summary_table_data)
-        logger.log({'Summary:': '\n' + table.table})
 
-        for i in range(1, len(summary_table_data[0])):
-            eval_results[summary_table_data[0]
-                         [i]] = summary_table_data[1][i] / 100.0
-        if is_list_of(results, str):
-            for file_name in results:
-                os.remove(file_name)
+        ret_metrics_summary = OrderedDict({
+            ret_metric: np.round(np.nanmean(ret_metric_value) * 100, 2)
+            for ret_metric, ret_metric_value in ret_metrics.items()
+        })
+
+        ret_metrics.pop('aAcc', None)
+        ret_metrics_class = OrderedDict({
+            ret_metric: np.round(ret_metric_value * 100, 2)
+            for ret_metric, ret_metric_value in ret_metrics.items()
+        })
+        ret_metrics_class.update({'Class': class_names})
+        ret_metrics_class.move_to_end('Class', last=False)
+
+        # for logger
+        class_table_data = PrettyTable()
+        for key, val in ret_metrics_class.items():
+            class_table_data.add_column(key, val)
+
+        summary_table_data = PrettyTable()
+        for key, val in ret_metrics_summary.items():
+            if key == 'aAcc':
+                summary_table_data.add_column(key, [val])
+            else:
+                summary_table_data.add_column('m' + key, [val])
+        logger.log({'per class results:\n': class_table_data.get_string()})
+        logger.log({'Summary:\n': summary_table_data.get_string()})
+        # each metric dict
+        for key, value in ret_metrics_summary.items():
+            if key == 'aAcc':
+                eval_results[key] = value / 100.0
+            else:
+                eval_results['m' + key] = value / 100.0
+
+        ret_metrics_class.pop('Class', None)
+        for key, value in ret_metrics_class.items():
+            eval_results.update({
+                key + '.' + str(name): value[idx] / 100.0
+                for idx, name in enumerate(class_names)
+            })
+
         return eval_results
 
     def collate_batch(self, batch):
