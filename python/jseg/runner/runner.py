@@ -158,7 +158,6 @@ class Runner:
                 # is_main use jt.rank==0, so it's scope must have no jt.Vars
                 if jt.rank == 0:
                     self.logger.log(data)
-                    jt.gc()
 
             if check_interval(self.iter, self.checkpoint_interval):
                 self.save()
