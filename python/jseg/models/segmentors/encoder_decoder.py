@@ -35,6 +35,7 @@ class EncoderDecoder(BaseSegmentor):
         self.decode_head = build_from_cfg(decode_head, HEADS)
         self.align_corners = self.decode_head.align_corners
         self.num_classes = self.decode_head.num_classes
+        self.out_channels = self.decode_head.out_channels
 
     def _init_auxiliary_head(self, auxiliary_head):
         if auxiliary_head is not None:
@@ -133,10 +134,10 @@ class EncoderDecoder(BaseSegmentor):
         h_stride, w_stride = self.test_cfg.stride
         h_crop, w_crop = self.test_cfg.crop_size
         batch_size, _, h_img, w_img = img.size()
-        num_classes = self.num_classes
+        out_channels = self.out_channels
         h_grids = max(h_img - h_crop + h_stride - 1, 0) // h_stride + 1
         w_grids = max(w_img - w_crop + w_stride - 1, 0) // w_stride + 1
-        preds = jt.zeros((batch_size, num_classes, h_img, w_img))
+        preds = jt.zeros((batch_size, out_channels, h_img, w_img))
         count_mat = jt.zeros((batch_size, 1, h_img, w_img))
         for h_idx in range(h_grids):
             for w_idx in range(w_grids):
@@ -156,6 +157,8 @@ class EncoderDecoder(BaseSegmentor):
         assert (count_mat == 0).sum() == 0
         preds = preds / count_mat
         if rescale:
+            resize_shape = img_meta['img_shape'][:2].numpy()
+            preds = preds[:, :, :resize_shape[0], :resize_shape[1]]
             preds = resize(preds,
                            size=img_meta['ori_shape'][:2],
                            mode='bilinear',
@@ -166,8 +169,11 @@ class EncoderDecoder(BaseSegmentor):
     def whole_inference(self, img, img_meta, rescale):
         seg_logit = self.encode_decode(img, img_meta)
         if rescale:
+            resize_shape = img_meta['img_shape'][:2].numpy()
+            seg_logit = seg_logit[:, :, :resize_shape[0], :resize_shape[1]]
+            size = img_meta['ori_shape'][:2]
             seg_logit = resize(seg_logit,
-                               size=img_meta['ori_shape'][:2],
+                               size=size,
                                mode='bilinear',
                                align_corners=self.align_corners,
                                warning=False)
@@ -194,7 +200,11 @@ class EncoderDecoder(BaseSegmentor):
 
     def simple_test(self, img, img_meta, rescale=True):
         seg_logit = self.inference(img, img_meta, rescale)
-        seg_pred = seg_logit.argmax(dim=1)[0]
+        if self.out_channels == 1:
+            seg_pred = (seg_logit >
+                        self.decode_head.threshold).to(seg_logit).squeeze(1)
+        else:
+            seg_pred = seg_logit.argmax(dim=1)[0]
         # unravel batch dim
         seg_pred = list(seg_pred.numpy())
         return seg_pred
@@ -208,7 +218,11 @@ class EncoderDecoder(BaseSegmentor):
             cur_seg_logit = self.inference(imgs[i], img_metas[i], rescale)
             seg_logit += cur_seg_logit
         seg_logit /= len(imgs)
-        seg_pred = seg_logit.argmax(dim=1)[0]
+        if self.out_channels == 1:
+            seg_pred = (seg_logit >
+                        self.decode_head.threshold).to(seg_logit).squeeze(1)
+        else:
+            seg_pred = seg_logit.argmax(dim=1)[0]
         # unravel batch dim
         seg_pred = list(seg_pred.numpy())
         return seg_pred
