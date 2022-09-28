@@ -56,19 +56,16 @@ train_pipeline = [
 ]
 test_pipeline = [
     dict(type='LoadImageFromFile'),
-    dict(
-        type='MultiScaleFlipAug',
-        img_scale=(2048, 512),
-        # img_ratios=[0.5, 0.75, 1.0, 1.25, 1.5, 1.75],
-        flip=False,
-        transforms=[
-            dict(type='Resize', keep_ratio=True),
-            dict(type='ResizeToMultiple', size_divisor=32),
-            dict(type='RandomFlip'),
-            dict(type='Normalize', **img_norm_cfg),
-            dict(type='ImageToTensor', keys=['img']),
-            dict(type='Collect', keys=['img']),
-        ])
+    dict(type='MultiScaleFlipAug',
+         img_scale=(2048, 512),
+         flip=False,
+         transforms=[
+             dict(type='Resize', keep_ratio=True),
+             dict(type='RandomFlip'),
+             dict(type='Normalize', **img_norm_cfg),
+             dict(type='ImageToTensor', keys=['img']),
+             dict(type='Collect', keys=['img']),
+         ])
 ]
 dataset = dict(
     train=dict(type=dataset_type,
@@ -94,9 +91,12 @@ dataset = dict(
 
 parameter_groups_generator = dict(type="CustomPrameterGroupsGenerator",
                                   custom_keys={
-                                      'pos_block': dict(decay_mult=0.),
-                                      'norm': dict(decay_mult=0.),
-                                      'head': dict(lr_mult=10.)
+                                      'absolute_pos_embed':
+                                      dict(decay_mult=0.),
+                                      'relative_position_bias_table':
+                                      dict(decay_mult=0.),
+                                      'norm':
+                                      dict(decay_mult=0.)
                                   })
 
 optimizer = dict(
