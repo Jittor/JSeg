@@ -25,10 +25,10 @@ class LoadImageFromFile(object):
         results['filename'] = filename
         results['ori_filename'] = results['img_info']['filename']
         results['img'] = img
-        results['img_shape'] = np.array(img.shape)
-        results['ori_shape'] = np.array(img.shape)
+        results['img_shape'] = img.shape
+        results['ori_shape'] = img.shape
         # Set initial values for default meta_keys
-        results['pad_shape'] = np.array(img.shape)
+        results['pad_shape'] = img.shape
         results['scale_factor'] = 1.0
         num_channels = 1 if len(img.shape) < 3 else img.shape[2]
         results['img_norm_cfg'] = dict(mean=np.zeros(num_channels,

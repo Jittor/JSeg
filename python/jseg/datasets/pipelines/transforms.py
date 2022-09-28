@@ -155,9 +155,8 @@ class Resize(object):
         scale_factor = np.array([w_scale, h_scale, w_scale, h_scale],
                                 dtype=np.float32)
         results['img'] = img
-        results['img_shape'] = np.array(img.shape)
-        results['pad_shape'] = np.array(
-            img.shape)  # in case that there is no padding
+        results['img_shape'] = img.shape
+        results['pad_shape'] = img.shape  # in case that there is no padding
         results['scale_factor'] = scale_factor
         results['keep_ratio'] = self.keep_ratio
 
@@ -245,8 +244,8 @@ class Pad(object):
                                            self.size_divisor,
                                            pad_val=self.pad_val)
         results['img'] = padded_img
-        results['pad_shape'] = np.array(padded_img.shape)
-        results['pad_fixed_size'] = np.array(self.size)
+        results['pad_shape'] = padded_img.shape
+        results['pad_fixed_size'] = self.size
         results['pad_size_divisor'] = self.size_divisor
 
     def _pad_seg(self, results):
@@ -383,7 +382,7 @@ class RandomCrop(object):
         img = self.crop(img, crop_bbox)
         img_shape = img.shape
         results['img'] = img
-        results['img_shape'] = np.array(img_shape)
+        results['img_shape'] = img_shape
 
         # crop semantic seg
         for key in results.get('seg_fields', []):
@@ -519,7 +518,7 @@ class RGB2Gray(object):
             img = img.repeat(self.out_channels, axis=2)
 
         results['img'] = img
-        results['img_shape'] = np.array(img.shape)
+        results['img_shape'] = img.shape
 
         return results
 
