@@ -43,10 +43,10 @@ test_pipeline = [
         type='MultiScaleFlipAug',
         img_scale=(2048, 512),
         # img_ratios=[0.5, 0.75, 1.0, 1.25, 1.5, 1.75],
-        # flip=True,
         flip=False,
         transforms=[
-            dict(type='AlignedResize', keep_ratio=True, size_divisor=32),
+            dict(type='Resize', keep_ratio=True),
+            dict(type='ResizeToMultiple', size_divisor=32),
             dict(type='RandomFlip'),
             dict(type='Normalize', **img_norm_cfg),
             dict(type='ImageToTensor', keys=['img']),
