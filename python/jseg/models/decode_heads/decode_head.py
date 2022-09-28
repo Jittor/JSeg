@@ -20,6 +20,7 @@ class BaseDecodeHead(nn.Module, metaclass=ABCMeta):
                  dropout_ratio=0.1,
                  in_index=-1,
                  input_transform=None,
+                 decoder_params=None,
                  loss_decode=dict(type='CrossEntropyLoss',
                                   use_sigmoid=False,
                                   loss_weight=1.0),
