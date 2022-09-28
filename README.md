@@ -117,6 +117,7 @@ if __name__ == "__main__":
 ### Supported methods:
 - :heavy_check_mark: [FCN (CVPR'2015/TPAMI'2017)](project/fcn)
 - :heavy_check_mark: [PSPNet (CVPR'2017)](project/pspnet)
+- :heavy_check_mark: [UPerNet (ECCV'2018)](project/upernet)
 - :heavy_check_mark: [SegFormer (NeurIPS'2021)](project/segformer)
 - :heavy_check_mark: [SegNeXt (NeurIPS'2022)](project/segnext)
 

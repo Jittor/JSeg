@@ -1,0 +1,92 @@
+import jittor as jt
+from jittor import nn
+from jseg.ops import ConvModule
+
+from jseg.ops import resize
+from jseg.utils.registry import HEADS
+from .decode_head import BaseDecodeHead
+from .psp_head import PPM
+
+
+@HEADS.register_module()
+class UPerHead(BaseDecodeHead):
+    def __init__(self, pool_scales=(1, 2, 3, 6), **kwargs):
+        super(UPerHead, self).__init__(input_transform='multiple_select',
+                                       **kwargs)
+        # PSP Module
+        self.psp_modules = PPM(pool_scales,
+                               self.in_channels[-1],
+                               self.channels,
+                               align_corners=self.align_corners)
+        self.bottleneck = ConvModule(self.in_channels[-1] +
+                                     len(pool_scales) * self.channels,
+                                     self.channels,
+                                     3,
+                                     padding=1)
+        # FPN Module
+        self.lateral_convs = nn.ModuleList()
+        self.fpn_convs = nn.ModuleList()
+        for in_channels in self.in_channels[:-1]:  # skip the top layer
+            l_conv = ConvModule(in_channels, self.channels, 1)
+            fpn_conv = ConvModule(self.channels, self.channels, 3, padding=1)
+            self.lateral_convs.append(l_conv)
+            self.fpn_convs.append(fpn_conv)
+
+        self.fpn_bottleneck = ConvModule(len(self.in_channels) * self.channels,
+                                         self.channels,
+                                         3,
+                                         padding=1)
+
+    def psp_execute(self, inputs):
+        """execute function of PSP module."""
+        x = inputs[-1]
+        psp_outs = [x]
+        psp_outs.extend(self.psp_modules(x))
+        psp_outs = jt.concat(psp_outs, dim=1)
+        output = self.bottleneck(psp_outs)
+
+        return output
+
+    def _execute_feature(self, inputs):
+        inputs = self._transform_inputs(inputs)
+
+        # build laterals
+        laterals = [
+            lateral_conv(inputs[i])
+            for i, lateral_conv in enumerate(self.lateral_convs)
+        ]
+
+        laterals.append(self.psp_execute(inputs))
+
+        # build top-down path
+        used_backbone_levels = len(laterals)
+        for i in range(used_backbone_levels - 1, 0, -1):
+            prev_shape = laterals[i - 1].shape[2:]
+            laterals[i - 1] = laterals[i - 1] + resize(
+                laterals[i],
+                size=prev_shape,
+                mode='bilinear',
+                align_corners=self.align_corners)
+
+        # build outputs
+        fpn_outs = [
+            self.fpn_convs[i](laterals[i])
+            for i in range(used_backbone_levels - 1)
+        ]
+        # append psp feature
+        fpn_outs.append(laterals[-1])
+
+        for i in range(used_backbone_levels - 1, 0, -1):
+            fpn_outs[i] = resize(fpn_outs[i],
+                                 size=fpn_outs[0].shape[2:],
+                                 mode='bilinear',
+                                 align_corners=self.align_corners)
+        fpn_outs = jt.concat(fpn_outs, dim=1)
+        feats = self.fpn_bottleneck(fpn_outs)
+        return feats
+
+    def execute(self, inputs):
+        """execute function."""
+        output = self._execute_feature(inputs)
+        output = self.cls_seg(output)
+        return output
