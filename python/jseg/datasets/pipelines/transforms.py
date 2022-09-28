@@ -1,172 +1,44 @@
 import numpy as np
-from jseg.utils.general import is_list_of, is_tuple_of
 from numpy import random
-
+from jseg.utils.general import is_list_of, is_tuple_of
 from jseg.utils.registry import TRANSFORMS
-from .utils import imresize, imrescale, imflip, impad_to_multiple, impad, imnormalize, imrotate, clahe, bgr2hsv, hsv2bgr
+from .utils import imresize, imresize_to_multiple, imrescale, imflip, impad_to_multiple, impad, imnormalize, imrotate, clahe, bgr2hsv, hsv2bgr
 
 
 @TRANSFORMS.register_module()
-class AlignedResize(object):
-    def __init__(self,
-                 img_scale=None,
-                 multiscale_mode='range',
-                 ratio_range=None,
-                 keep_ratio=True,
-                 size_divisor=32):
-        if img_scale is None:
-            self.img_scale = None
-        else:
-            if isinstance(img_scale, list):
-                self.img_scale = img_scale
-            else:
-                self.img_scale = [img_scale]
-            assert is_list_of(self.img_scale, tuple)
-
-        if ratio_range is not None:
-            # mode 1: given img_scale=None and a range of image ratio
-            # mode 2: given a scale and a range of image ratio
-            assert self.img_scale is None or len(self.img_scale) == 1
-        else:
-            # mode 3 and 4: given multiple scales or a range of scales
-            assert multiscale_mode in ['value', 'range']
-
-        self.multiscale_mode = multiscale_mode
-        self.ratio_range = ratio_range
-        self.keep_ratio = keep_ratio
+class ResizeToMultiple(object):
+    def __init__(self, size_divisor=32, interpolation=None):
         self.size_divisor = size_divisor
-
-    @staticmethod
-    def random_select(img_scales):
-        """Randomly select an img_scale from given candidates.
-
-        Args:
-            img_scales (list[tuple]): Images scales for selection.
-
-        Returns:
-            (tuple, int): Returns a tuple ``(img_scale, scale_dix)``,
-                where ``img_scale`` is the selected image scale and
-                ``scale_idx`` is the selected index in the given candidates.
-        """
-
-        assert is_list_of(img_scales, tuple)
-        scale_idx = np.random.randint(len(img_scales))
-        img_scale = img_scales[scale_idx]
-        return img_scale, scale_idx
-
-    @staticmethod
-    def random_sample(img_scales):
-        assert is_list_of(img_scales, tuple) and len(img_scales) == 2
-        img_scale_long = [max(s) for s in img_scales]
-        img_scale_short = [min(s) for s in img_scales]
-        long_edge = np.random.randint(min(img_scale_long),
-                                      max(img_scale_long) + 1)
-        short_edge = np.random.randint(min(img_scale_short),
-                                       max(img_scale_short) + 1)
-        img_scale = (long_edge, short_edge)
-        return img_scale, None
-
-    @staticmethod
-    def random_sample_ratio(img_scale, ratio_range):
-        assert isinstance(img_scale, tuple) and len(img_scale) == 2
-        min_ratio, max_ratio = ratio_range
-        assert min_ratio <= max_ratio
-        ratio = np.random.random_sample() * (max_ratio - min_ratio) + min_ratio
-        scale = int(img_scale[0] * ratio), int(img_scale[1] * ratio)
-        return scale, None
-
-    def _random_scale(self, results):
-
-        if self.ratio_range is not None:
-            if self.img_scale is None:
-                h, w = results['img'].shape[:2]
-                scale, scale_idx = self.random_sample_ratio((w, h),
-                                                            self.ratio_range)
-            else:
-                scale, scale_idx = self.random_sample_ratio(
-                    self.img_scale[0], self.ratio_range)
-        elif len(self.img_scale) == 1:
-            scale, scale_idx = self.img_scale[0], 0
-        elif self.multiscale_mode == 'range':
-            scale, scale_idx = self.random_sample(self.img_scale)
-        elif self.multiscale_mode == 'value':
-            scale, scale_idx = self.random_select(self.img_scale)
-        else:
-            raise NotImplementedError
-
-        results['scale'] = scale
-        results['scale_idx'] = scale_idx
-
-    def _align(self, img, size_divisor, interpolation=None):
-        align_h = int(np.ceil(img.shape[0] / size_divisor)) * size_divisor
-        align_w = int(np.ceil(img.shape[1] / size_divisor)) * size_divisor
-        if interpolation == None:
-            img = imresize(img, (align_w, align_h))
-        else:
-            img = imresize(img, (align_w, align_h),
-                           interpolation=interpolation)
-        return img
-
-    def _resize_img(self, results):
-        if self.keep_ratio:
-            img, scale_factor = imrescale(results['img'],
-                                          results['scale'],
-                                          return_scale=True)
-            img = self._align(img, self.size_divisor)
-            new_h, new_w = img.shape[:2]
-            h, w = results['img'].shape[:2]
-            w_scale = new_w / w
-            h_scale = new_h / h
-        else:
-            img, w_scale, h_scale = imresize(results['img'],
-                                             results['scale'],
-                                             return_scale=True)
-
-            h, w = img.shape[:2]
-            assert int(np.ceil(h / self.size_divisor)) * self.size_divisor == h and \
-                int(np.ceil(w / self.size_divisor)) * self.size_divisor == w, \
-                "img size not align. h:{} w:{}".format(h, w)
-        scale_factor = np.array([w_scale, h_scale, w_scale, h_scale],
-                                dtype=np.float32)
-        results['img'] = img
-        results['img_shape'] = np.array(img.shape)
-        # in case that there is no padding
-        results['pad_shape'] = np.array(img.shape)
-        results['scale_factor'] = scale_factor
-        results['keep_ratio'] = self.keep_ratio
-
-    def _resize_seg(self, results):
-        for key in results.get('seg_fields', []):
-            if self.keep_ratio:
-                gt_seg = imrescale(results[key],
-                                   results['scale'],
-                                   interpolation='nearest')
-                gt_seg = self._align(gt_seg,
-                                     self.size_divisor,
-                                     interpolation='nearest')
-            else:
-                gt_seg = imresize(results[key],
-                                  results['scale'],
-                                  interpolation='nearest')
-                h, w = gt_seg.shape[:2]
-                assert int(np.ceil(h / self.size_divisor)) * self.size_divisor == h and \
-                    int(np.ceil(w / self.size_divisor)) * self.size_divisor == w, \
-                    "gt_seg size not align. h:{} w:{}".format(h, w)
-            results[key] = gt_seg
+        self.interpolation = interpolation
 
     def __call__(self, results):
-        if 'scale' not in results:
-            self._random_scale(results)
-        self._resize_img(results)
-        self._resize_seg(results)
+        # Align image to multiple of size divisor.
+        img = results['img']
+        img = imresize_to_multiple(img,
+                                   self.size_divisor,
+                                   scale_factor=1,
+                                   interpolation=self.interpolation
+                                   if self.interpolation else 'bilinear')
+
+        results['img'] = img
+        results['img_shape'] = img.shape
+        results['pad_shape'] = img.shape
+
+        # Align segmentation map to multiple of size divisor.
+        for key in results.get('seg_fields', []):
+            gt_seg = results[key]
+            gt_seg = imresize_to_multiple(gt_seg,
+                                          self.size_divisor,
+                                          scale_factor=1,
+                                          interpolation='nearest')
+            results[key] = gt_seg
+
         return results
 
     def __repr__(self):
         repr_str = self.__class__.__name__
-        repr_str += (f'(img_scale={self.img_scale}, '
-                     f'multiscale_mode={self.multiscale_mode}, '
-                     f'ratio_range={self.ratio_range}, '
-                     f'keep_ratio={self.keep_ratio})')
+        repr_str += (f'(size_divisor={self.size_divisor}, '
+                     f'interpolation={self.interpolation})')
         return repr_str
 
 
@@ -176,7 +48,8 @@ class Resize(object):
                  img_scale=None,
                  multiscale_mode='range',
                  ratio_range=None,
-                 keep_ratio=True):
+                 keep_ratio=True,
+                 min_size=None):
         if img_scale is None:
             self.img_scale = None
         else:
@@ -197,20 +70,10 @@ class Resize(object):
         self.multiscale_mode = multiscale_mode
         self.ratio_range = ratio_range
         self.keep_ratio = keep_ratio
+        self.min_size = min_size
 
     @staticmethod
     def random_select(img_scales):
-        """Randomly select an img_scale from given candidates.
-
-        Args:
-            img_scales (list[tuple]): Images scales for selection.
-
-        Returns:
-            (tuple, int): Returns a tuple ``(img_scale, scale_dix)``,
-                where ``img_scale`` is the selected image scale and
-                ``scale_idx`` is the selected index in the given candidates.
-        """
-
         assert is_list_of(img_scales, tuple)
         scale_idx = np.random.randint(len(img_scales))
         img_scale = img_scales[scale_idx]
@@ -259,7 +122,25 @@ class Resize(object):
         results['scale_idx'] = scale_idx
 
     def _resize_img(self, results):
+        """Resize images with ``results['scale']``."""
         if self.keep_ratio:
+            if self.min_size is not None:
+                # TODO: Now 'min_size' is an 'int' which means the minimum
+                # shape of images is (min_size, min_size, 3). 'min_size'
+                # with tuple type will be supported, i.e. the width and
+                # height are not equal.
+                if min(results['scale']) < self.min_size:
+                    new_short = self.min_size
+                else:
+                    new_short = min(results['scale'])
+
+                h, w = results['img'].shape[:2]
+                if h > w:
+                    new_h, new_w = new_short * h / w, new_short
+                else:
+                    new_h, new_w = new_short, new_short * w / h
+                results['scale'] = (new_h, new_w)
+
             img, scale_factor = imrescale(results['img'],
                                           results['scale'],
                                           return_scale=True)
@@ -275,8 +156,8 @@ class Resize(object):
                                 dtype=np.float32)
         results['img'] = img
         results['img_shape'] = np.array(img.shape)
-        # in case that there is no padding
-        results['pad_shape'] = np.array(img.shape)
+        results['pad_shape'] = np.array(
+            img.shape)  # in case that there is no padding
         results['scale_factor'] = scale_factor
         results['keep_ratio'] = self.keep_ratio
 
@@ -515,48 +396,6 @@ class RandomCrop(object):
 
 
 @TRANSFORMS.register_module()
-class CenterCrop(object):
-    def __init__(self, crop_size, ignore_index=255):
-        assert crop_size[0] > 0 and crop_size[1] > 0
-        self.crop_size = crop_size
-        self.ignore_index = ignore_index
-
-    def get_crop_bbox(self, img):
-        margin_h = max(img.shape[0] - self.crop_size[0], 0)
-        margin_w = max(img.shape[1] - self.crop_size[1], 0)
-        offset_h = margin_h // 2  # np.random.randint(0, margin_h + 1)
-        offset_w = margin_w // 2  # np.random.randint(0, margin_w + 1)
-        crop_y1, crop_y2 = offset_h, offset_h + self.crop_size[0]
-        crop_x1, crop_x2 = offset_w, offset_w + self.crop_size[1]
-
-        return crop_y1, crop_y2, crop_x1, crop_x2
-
-    def crop(self, img, crop_bbox):
-        crop_y1, crop_y2, crop_x1, crop_x2 = crop_bbox
-        img = img[crop_y1:crop_y2, crop_x1:crop_x2, ...]
-        return img
-
-    def __call__(self, results):
-        img = results['img']
-        crop_bbox = self.get_crop_bbox(img)
-
-        # crop the image
-        img = self.crop(img, crop_bbox)
-        img_shape = img.shape
-        results['img'] = img
-        results['img_shape'] = np.array(img_shape)
-
-        # crop semantic seg
-        for key in results.get('seg_fields', []):
-            results[key] = self.crop(results[key], crop_bbox)
-
-        return results
-
-    def __repr__(self):
-        return self.__class__.__name__ + f'(crop_size={self.crop_size})'
-
-
-@TRANSFORMS.register_module()
 class RandomRotate(object):
     def __init__(self,
                  prob,
@@ -689,37 +528,6 @@ class RGB2Gray(object):
         repr_str += f'(out_channels={self.out_channels}, ' \
                     f'weights={self.weights})'
         return repr_str
-
-
-@TRANSFORMS.register_module()
-class MaillaryHack(object):
-    def __init__(self):
-        self.map = [[13, 24, 41], [2, 15], [17], [6], [3],
-                    [45, 47], [48], [50], [30], [29], [27], [19], [20, 21, 22],
-                    [55], [61], [54], [58], [57], [52]]
-
-        self.others = [i for i in range(66)]
-        for i in self.map:
-            for j in i:
-                if j in self.others:
-                    self.others.remove(j)
-
-    def __call__(self, results):
-        gt_map = results['gt_semantic_seg']
-        # others -> 255
-        for value in self.others:
-            gt_map[gt_map == value] = 255
-
-        for index, map in enumerate(self.map):
-            for value in map:
-                gt_map[gt_map == value] = index
-
-        results['gt_semantic_seg'] = gt_map
-
-        return results
-
-    def __repr__(self):
-        return 'MaillaryHack'
 
 
 @TRANSFORMS.register_module()

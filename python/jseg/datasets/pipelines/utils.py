@@ -3,7 +3,15 @@ import numbers
 from PIL import Image, ImageOps
 import numpy as np
 from jseg.utils.general import is_tuple_of
+from jseg.utils import to_2tuple
+from cv2 import (IMREAD_COLOR, IMREAD_GRAYSCALE, IMREAD_IGNORE_ORIENTATION,
+                 IMREAD_UNCHANGED)
+try:
+    import tifffile
+except ImportError:
+    tifffile = None
 
+supported_backends = ['cv2', 'pillow', 'tifffile']
 pillow_interp_codes = {
     'nearest': Image.NEAREST,
     'bilinear': Image.BILINEAR,
@@ -20,6 +28,38 @@ cv2_interp_codes = {
     'area': cv2.INTER_AREA,
     'lanczos': cv2.INTER_LANCZOS4
 }
+
+imread_flags = {
+    'color': IMREAD_COLOR,
+    'grayscale': IMREAD_GRAYSCALE,
+    'unchanged': IMREAD_UNCHANGED,
+    'color_ignore_orientation': IMREAD_IGNORE_ORIENTATION | IMREAD_COLOR,
+    'grayscale_ignore_orientation':
+    IMREAD_IGNORE_ORIENTATION | IMREAD_GRAYSCALE
+}
+imread_backend = 'cv2'
+
+
+def imread(img_path, flag='color', channel_order='bgr', backend=None):
+    if backend is None:
+        backend = imread_backend
+    if backend not in supported_backends:
+        raise ValueError(f'backend: {backend} is not supported. Supported '
+                         "backends are 'cv2', 'pillow', 'tifffile'")
+
+    if backend == 'pillow':
+        img = Image.open(img_path)
+        img = _pillow2array(img, flag, channel_order)
+        return img
+    elif backend == 'tifffile':
+        img = tifffile.imread(img_path)
+        return img
+    else:
+        flag = imread_flags[flag]
+        img = cv2.imread(img_path, flag)
+        if flag == IMREAD_COLOR and channel_order == 'rgb':
+            cv2.cvtColor(img, cv2.COLOR_BGR2RGB, img)
+        return img
 
 
 def _pillow2array(img, flag='color', channel_order='bgr'):
@@ -64,12 +104,64 @@ def _pillow2array(img, flag='color', channel_order='bgr'):
     return array
 
 
-def imresize(img, size, return_scale=False, interpolation='bilinear'):
+def imresize_to_multiple(img,
+                         divisor,
+                         size=None,
+                         scale_factor=None,
+                         keep_ratio=False,
+                         return_scale=False,
+                         interpolation='bilinear',
+                         out=None,
+                         backend=None):
     h, w = img.shape[:2]
-    assert img.dtype == np.uint8
-    pil_image = Image.fromarray(img)
-    pil_image = pil_image.resize(size, pillow_interp_codes[interpolation])
-    resized_img = np.array(pil_image)
+    if size is not None and scale_factor is not None:
+        raise ValueError('only one of size or scale_factor should be defined')
+    elif size is None and scale_factor is None:
+        raise ValueError('one of size or scale_factor should be defined')
+    elif size is not None:
+        size = to_2tuple(size)
+        if keep_ratio:
+            size = rescale_size((w, h), size, return_scale=False)
+    else:
+        size = _scale_size((w, h), scale_factor)
+
+    divisor = to_2tuple(divisor)
+    size = tuple(int(np.ceil(s / d)) * d for s, d in zip(size, divisor))
+    resized_img, w_scale, h_scale = imresize(img,
+                                             size,
+                                             return_scale=True,
+                                             interpolation=interpolation,
+                                             out=out,
+                                             backend=backend)
+    if return_scale:
+        return resized_img, w_scale, h_scale
+    else:
+        return resized_img
+
+
+def imresize(img,
+             size,
+             return_scale=False,
+             interpolation='bilinear',
+             out=None,
+             backend=None):
+    h, w = img.shape[:2]
+    if backend is None:
+        backend = imread_backend
+    if backend not in ['cv2', 'pillow']:
+        raise ValueError(f'backend: {backend} is not supported for resize.'
+                         f"Supported backends are 'cv2', 'pillow'")
+
+    if backend == 'pillow':
+        assert img.dtype == np.uint8, 'Pillow backend only support uint8 type'
+        pil_image = Image.fromarray(img)
+        pil_image = pil_image.resize(size, pillow_interp_codes[interpolation])
+        resized_img = np.array(pil_image)
+    else:
+        resized_img = cv2.resize(img,
+                                 size,
+                                 dst=out,
+                                 interpolation=cv2_interp_codes[interpolation])
     if not return_scale:
         return resized_img
     else:
@@ -136,7 +228,9 @@ def impad(img,
           padding_mode='constant'):
     assert (shape is not None) ^ (padding is not None)
     if shape is not None:
-        padding = (0, 0, shape[1] - img.shape[1], shape[0] - img.shape[0])
+        width = max(shape[1] - img.shape[1], 0)
+        height = max(shape[0] - img.shape[0], 0)
+        padding = (0, 0, width, height)
 
     # check pad_val
     if isinstance(pad_val, tuple):

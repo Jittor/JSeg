@@ -1,20 +1,15 @@
 import os.path as osp
-
 import numpy as np
 from jseg.utils.registry import TRANSFORMS
-from PIL import Image
-from .utils import _pillow2array
+from .utils import imread
 
 
 @TRANSFORMS.register_module()
 class LoadImageFromFile(object):
-    def __init__(self,
-                 to_float32=False,
-                 color_type='color',
-                 channel_order='bgr'):
+    def __init__(self, to_float32=False, color_type='color', backend='cv2'):
         self.to_float32 = to_float32
         self.color_type = color_type
-        self.channel_order = channel_order
+        self.backend = backend
 
     def __call__(self, results):
         if results.get('img_prefix') is not None:
@@ -22,10 +17,8 @@ class LoadImageFromFile(object):
                                 results['img_info']['filename'])
         else:
             filename = results['img_info']['filename']
-        img = Image.open(filename)
-        img = _pillow2array(img,
-                            flag=self.color_type,
-                            channel_order=self.channel_order)
+        img = imread(filename, flag=self.color_type, backend=self.backend)
+
         if self.to_float32:
             img = img.astype(np.float32)
 
@@ -49,14 +42,15 @@ class LoadImageFromFile(object):
         repr_str = self.__class__.__name__
         repr_str += f'(to_float32={self.to_float32},'
         repr_str += f"color_type='{self.color_type}',"
-        repr_str += f"imdecode_backend='{self.imdecode_backend}')"
+        repr_str += f"backend='{self.backend}')"
         return repr_str
 
 
 @TRANSFORMS.register_module()
 class LoadAnnotations(object):
-    def __init__(self, reduce_zero_label=False):
+    def __init__(self, reduce_zero_label=False, backend='pillow'):
         self.reduce_zero_label = reduce_zero_label
+        self.backend = backend
 
     def __call__(self, results):
         if results.get('seg_prefix', None) is not None:
@@ -64,13 +58,14 @@ class LoadAnnotations(object):
                                 results['ann_info']['seg_map'])
         else:
             filename = results['ann_info']['seg_map']
-        gt_semantic_seg = Image.open(filename)
-        gt_semantic_seg = _pillow2array(
-            gt_semantic_seg, flag='unchanged').squeeze().astype(np.uint8)
+        gt_semantic_seg = imread(
+            filename, flag='unchanged',
+            backend=self.backend).squeeze().astype(np.uint8)
         # modify if custom classes
         if results.get('label_map', None) is not None:
+            gt_semantic_seg_copy = gt_semantic_seg.copy()
             for old_id, new_id in results['label_map'].items():
-                gt_semantic_seg[gt_semantic_seg == old_id] = new_id
+                gt_semantic_seg[gt_semantic_seg_copy == old_id] = new_id
         # reduce zero_label
         if self.reduce_zero_label:
             # avoid using underflow conversion
@@ -84,5 +79,5 @@ class LoadAnnotations(object):
     def __repr__(self):
         repr_str = self.__class__.__name__
         repr_str += f'(reduce_zero_label={self.reduce_zero_label},'
-        repr_str += f"imdecode_backend='{self.imdecode_backend}')"
+        repr_str += f"backend='{self.backend}')"
         return repr_str
