@@ -112,7 +112,7 @@ if __name__ == "__main__":
 
 ### Supported backbones:
 - :heavy_check_mark: ResNet (CVPR'2016)
-- :[ResNeSt (ArXiv'2020)](project/resnest)
+- :heavy_check_mark: [ResNeSt (ArXiv'2020)](project/resnest)
 - :heavy_check_mark: [Swin Transformer (ICCV'2021)](project/swin)
 
 ### Supported methods:
