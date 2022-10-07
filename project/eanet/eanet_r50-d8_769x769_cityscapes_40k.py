@@ -19,7 +19,14 @@ model = dict(
                      align_corners=True,
                      loss_decode=dict(type='CrossEntropyLoss',
                                       use_sigmoid=False,
-                                      loss_weight=1.0)),
+                                      loss_weight=1.0,
+                                      class_weight=[
+                                          0.8373, 0.918, 0.866, 1.0345, 1.0166,
+                                          0.9969, 0.9754, 1.0489, 0.8786,
+                                          1.0023, 0.9539, 0.9843, 1.1116,
+                                          0.9037, 1.0865, 1.0955, 1.0865,
+                                          1.1529, 1.0507
+                                      ])),
     auxiliary_head=dict(type='FCNHead',
                         in_channels=1024,
                         in_index=2,
@@ -109,9 +116,6 @@ eval_interval = 4000
 checkpoint_interval = 4000
 log_interval = 50
 
-scheduler = dict(type='PolyLR',
-                 max_steps=max_iter,
-                 power=0.9,
-                 min_lr=1e-4)
+scheduler = dict(type='PolyLR', max_steps=max_iter, power=0.9, min_lr=1e-4)
 
 logger = dict(type="RunLogger")
