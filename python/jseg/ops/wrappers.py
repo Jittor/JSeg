@@ -1,22 +1,5 @@
 import warnings
 from jittor import nn
-from jittor import Function
-
-
-# TODO Save memory
-class Resize(Function):
-    def execute(self, input, size, scale_factor, mode, align_corners):
-        self.input_size = input.shape[2:]
-        self.scale_factor = scale_factor
-        self.mode = mode
-        self.align_corners = align_corners
-        return nn.interpolate(input, size, scale_factor, mode, align_corners)
-
-    def grad(self, grad_output):
-        return nn.interpolate(grad_output, self.input_size, self.scale_factor, self.mode, self.align_corners)
-
-
-interpolate = Resize.apply
 
 
 def resize(input,
@@ -40,7 +23,7 @@ def resize(input,
                         f'out size {(output_h, output_w)} is `nx+1`')
 
     size = tuple(int(x) for x in size)
-    return interpolate(input, size, scale_factor, mode, align_corners)
+    return nn.interpolate(input, size, scale_factor, mode, align_corners)
 
 
 class Upsample(nn.Module):
