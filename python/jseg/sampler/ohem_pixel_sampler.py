@@ -13,7 +13,6 @@ class OHEMPixelSampler(BasePixelSampler):
         assert min_kept > 1
         self.thresh = thresh
         self.min_kept = min_kept
-        print('USE OHEM ', 'thresh:', thresh, 'min_kept', min_kept)
 
     def sample(self, seg_logit, seg_label):
         with jt.no_grad():
