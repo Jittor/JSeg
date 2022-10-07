@@ -26,7 +26,10 @@ model = dict(
                                           1.0023, 0.9539, 0.9843, 1.1116,
                                           0.9037, 1.0865, 1.0955, 1.0865,
                                           1.1529, 1.0507
-                                      ])),
+                                      ]),
+                     sampler=dict(type='OHEMPixelSampler',
+                                  thresh=0.7,
+                                  min_kept=100000)),
     auxiliary_head=dict(type='FCNHead',
                         in_channels=1024,
                         in_index=2,

@@ -2,7 +2,7 @@ import warnings
 import jittor as jt
 from jittor import nn
 from jseg.ops import resize
-from jseg.utils.registry import build_from_cfg, LOSSES
+from jseg.utils.registry import build_from_cfg, LOSSES, PIXEL_SAMPLERS
 from abc import ABCMeta, abstractmethod
 
 from ..losses import accuracy
@@ -71,8 +71,7 @@ class BaseDecodeHead(nn.Module, metaclass=ABCMeta):
                 but got {type(loss_decode)}')
 
         if sampler is not None:
-            # TODO
-            self.sampler = build_pixel_sampler(sampler, context=self)
+            self.sampler = build_from_cfg(sampler, PIXEL_SAMPLERS, context=self)
         else:
             self.sampler = None
 
