@@ -131,6 +131,9 @@ if __name__ == "__main__":
   - :heavy_check_mark: [Cityscapes](docs/dataset_prepare.md#cityscapes)
   - :heavy_check_mark: [PASCAL VOC](docs/dataset_prepare.md#pascal-voc)
   - :heavy_check_mark: [iSAID](docs/dataset_prepare.md#isaid)
+  - :heavy_check_mark: [LoveDA](docs/dataset_prepare.md#LoveDA)
+  - :heavy_check_mark: [Potsdam](docs/dataset_prepare.md#isprs-potsdam)
+  - :heavy_check_mark: [Vaihingen](docs/dataset_prepare.md#isprs-vaihingen)
 
 
 ## Contact Us
