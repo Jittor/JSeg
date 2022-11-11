@@ -139,3 +139,52 @@ python tools/convert_datasets/isaid.py --src=./datasets/iSAID --target=./dataset
 ```
 
 In our default setting (`patch_width`=800, `patch_height`=800,　`overlap_area`=200), it will generate 28029 images for training and 9512 images for validation.
+
+### LoveDA
+
+The data could be downloaded from Google Drive [here](https://drive.google.com/drive/folders/1ibYV0qwn4yuuh068Rnc-w4tPi0U0c-ti?usp=sharing).
+
+Or it can be downloaded from [zenodo](https://zenodo.org/record/5706578#.YZvN7SYRXdF), you should run the following command:
+
+```shell
+# Download Train.zip
+wget https://zenodo.org/record/5706578/files/Train.zip
+# Download Val.zip
+wget https://zenodo.org/record/5706578/files/Val.zip
+# Download Test.zip
+wget https://zenodo.org/record/5706578/files/Test.zip
+```
+
+For LoveDA dataset, please run the following command to download and re-organize the dataset.
+
+```shell
+python tools/convert_datasets/loveda.py /path/to/loveDA
+```
+
+More details about LoveDA can be found [here](https://github.com/Junjue-Wang/LoveDA).
+
+### ISPRS Potsdam
+
+The [Potsdam](https://www.isprs.org/education/benchmarks/UrbanSemLab/2d-sem-label-potsdam.aspx)
+dataset is for urban semantic segmentation used in the 2D Semantic Labeling Contest - Potsdam.
+
+For Potsdam dataset, please run the following command to download and re-organize the dataset.
+
+```shell
+python tools/convert_datasets/potsdam.py /path/to/potsdam
+```
+
+In our default setting, it will generate 3456 images for training and 2016 images for validation.
+
+### ISPRS Vaihingen
+
+The [Vaihingen](https://www.isprs.org/education/benchmarks/UrbanSemLab/2d-sem-label-vaihingen.aspx)
+dataset is for urban semantic segmentation used in the 2D Semantic Labeling Contest - Vaihingen.
+
+For Vaihingen dataset, please run the following command to download and re-organize the dataset.
+
+```shell
+python tools/convert_datasets/vaihingen.py /path/to/vaihingen
+```
+
+In our default setting (`clip_size` =512, `stride_size`=256), it will generate 344 images for training and 398 images for validation.
