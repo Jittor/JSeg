@@ -1,5 +1,6 @@
 from jittor import nn
 from jseg.utils.weight_init import kaiming_init, constant_init
+from typing import Tuple, Union
 
 
 class ConvModule(nn.Module):
@@ -31,4 +32,35 @@ class ConvModule(nn.Module):
         x = self.conv(x)
         x = self.bn(x)
         x = nn.relu(x)
+        return x
+
+
+class DepthwiseSeparableConvModule(nn.Module):
+    def __init__(self,
+                 in_channels: int,
+                 out_channels: int,
+                 kernel_size: Union[int, Tuple[int, int]],
+                 stride: Union[int, Tuple[int, int]] = 1,
+                 padding: Union[int, Tuple[int, int]] = 0,
+                 dilation: Union[int, Tuple[int, int]] = 1):
+        super().__init__()
+
+        # depthwise convolution
+        self.depthwise_conv = ConvModule(
+            in_channels,
+            in_channels,
+            kernel_size,
+            stride=stride,
+            padding=padding,
+            dilation=dilation,
+            groups=in_channels)
+
+        self.pointwise_conv = ConvModule(
+            in_channels,
+            out_channels,
+            1)
+
+    def execute(self, x):
+        x = self.depthwise_conv(x)
+        x = self.pointwise_conv(x)
         return x
