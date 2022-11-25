@@ -20,7 +20,7 @@ class EncoderDecoder(BaseSegmentor):
         super(EncoderDecoder, self).__init__()
         self.backbone = build_from_cfg(backbone, BACKBONES)
         if neck is not None:
-            self.neck = build_from_cfg(backbone, NECKS)
+            self.neck = build_from_cfg(neck, NECKS)
         self._init_decode_head(decode_head)
         self._init_auxiliary_head(auxiliary_head)
 

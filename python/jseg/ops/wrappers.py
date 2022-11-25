@@ -21,8 +21,8 @@ def resize(input,
                         'the output would more aligned if '
                         f'input size {(input_h, input_w)} is `x+1` and '
                         f'out size {(output_h, output_w)} is `nx+1`')
-
-    size = tuple(int(x) for x in size)
+    if size is not None:
+        size = tuple(int(x) for x in size)
     return nn.interpolate(input, size, scale_factor, mode, align_corners)
 
 
