@@ -115,6 +115,7 @@ if __name__ == "__main__":
 - :heavy_check_mark: ResNeXt (CVPR'2017)
 - :heavy_check_mark: [ResNeSt (ArXiv'2020)](project/resnest)
 - :heavy_check_mark: [Swin Transformer (ICCV'2021)](project/swin)
+- :heavy_check_mark: [ConvNeXt (CVPR'2022)](project/convnext)
 
 ### Supported methods:
 - :heavy_check_mark: [FCN (CVPR'2015/TPAMI'2017)](project/fcn)
@@ -126,7 +127,6 @@ if __name__ == "__main__":
 - :heavy_check_mark: [CCNet (ICCV'2019)](project/ccnet)
 - :heavy_check_mark: [SegFormer (NeurIPS'2021)](project/segformer)
 - :heavy_check_mark: [EANet (TPAMI)](project/eanet)
-- :heavy_check_mark: [ConvNeXt (CVPR'2022)](project/convnext)
 - :heavy_check_mark: [SegNeXt (NeurIPS'2022)](project/segnext)
 
 ### Supported datasets:
