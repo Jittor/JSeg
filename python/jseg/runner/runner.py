@@ -209,7 +209,10 @@ class Runner:
                 images = data['img']
                 img_metas = data['img_metas']
                 results = self.model(images, img_metas, return_loss=False)
-                visualize_result(results[0], palette=self.test_dataset.PALETTE, save_dir=save_dir, file_name=img_metas[0]['ori_filename'])
+                visualize_result(results[0],
+                                 palette=self.test_dataset.PALETTE,
+                                 save_dir=save_dir,
+                                 file_name=img_metas[0]['ori_filename'])
 
     @jt.single_process_scope()
     def save(self):
@@ -252,7 +255,9 @@ class Runner:
             self.model.load_parameters(resume_data["state_dict"])
         else:
             self.model.load_parameters(resume_data)
-
+        self.logger.print_log(
+            f"Missing key: {self.model.state_dict().keys() - resume_data.keys()}"
+        )
         self.logger.print_log(f"Loading model parameters from {load_path}")
 
     def resume(self):

@@ -54,7 +54,8 @@ class PatchEmbed(nn.Module):
                  padding='corner',
                  dilation=1,
                  bias=True,
-                 input_size=None):
+                 input_size=None,
+                 norm=nn.LayerNorm):
         super(PatchEmbed, self).__init__()
 
         self.embed_dims = embed_dims
@@ -83,8 +84,10 @@ class PatchEmbed(nn.Module):
                                     padding=padding,
                                     dilation=dilation,
                                     bias=bias)
-
-        self.norm = nn.LayerNorm(embed_dims)
+        if norm is not None:
+            self.norm = norm(embed_dims)
+        else:
+            self.norm = None
 
         if input_size:
             input_size = to_2tuple(input_size)

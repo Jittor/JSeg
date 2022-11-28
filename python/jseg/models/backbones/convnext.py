@@ -184,9 +184,8 @@ class ConvNeXt(nn.Module):
                  layer_scale_init_value=1e-6,
                  out_indices=-1,
                  frozen_stages=0,
-                 gap_before_final_norm=True,
-                 init_cfg=None):
-        super().__init__(init_cfg=init_cfg)
+                 gap_before_final_norm=True):
+        super().__init__()
 
         if isinstance(arch, str):
             assert arch in self.arch_settings, \

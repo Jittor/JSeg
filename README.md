@@ -126,6 +126,7 @@ if __name__ == "__main__":
 - :heavy_check_mark: [CCNet (ICCV'2019)](project/ccnet)
 - :heavy_check_mark: [SegFormer (NeurIPS'2021)](project/segformer)
 - :heavy_check_mark: [EANet (TPAMI)](project/eanet)
+- :heavy_check_mark: [ConvNeXt (CVPR'2022)](project/convnext)
 - :heavy_check_mark: [SegNeXt (NeurIPS'2022)](project/segnext)
 
 ### Supported datasets:
