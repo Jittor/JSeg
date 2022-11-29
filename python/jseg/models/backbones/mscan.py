@@ -1,7 +1,7 @@
 import math
 import jittor as jt
 from jittor import nn
-from jseg.utils import to_2tuple
+from jseg.utils.helpers import to_2tuple
 from jseg.utils.registry import BACKBONES
 from jseg.utils.weight_init import trunc_normal_init, normal_init, constant_init
 

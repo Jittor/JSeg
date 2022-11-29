@@ -3,7 +3,7 @@ import numbers
 from PIL import Image, ImageOps
 import numpy as np
 from jseg.utils.general import is_tuple_of
-from jseg.utils import to_2tuple
+from jseg.utils.helpers import to_2tuple
 from cv2 import (IMREAD_COLOR, IMREAD_GRAYSCALE, IMREAD_IGNORE_ORIENTATION,
                  IMREAD_UNCHANGED)
 try:

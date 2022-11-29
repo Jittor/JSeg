@@ -250,13 +250,14 @@ class Runner:
             self.optimizer.load_parameters(resume_data.get(
                 "optimizer", dict()))
         if ("model" in resume_data):
-            self.model.load_parameters(resume_data["model"])
+            state_dict = resume_data["model"]
         elif ("state_dict" in resume_data):
-            self.model.load_parameters(resume_data["state_dict"])
+            state_dict = resume_data["state_dict"]
         else:
-            self.model.load_parameters(resume_data)
+            state_dict = resume_data
+        self.model.load_parameters(state_dict)
         self.logger.print_log(
-            f"Missing key: {self.model.state_dict().keys() - resume_data.keys()}"
+            f"Missing key: {self.model.state_dict().keys() - state_dict.keys()}"
         )
         self.logger.print_log(f"Loading model parameters from {load_path}")
 
