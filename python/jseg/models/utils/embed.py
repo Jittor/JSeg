@@ -1,7 +1,7 @@
 from typing import Sequence
 import math
 from jittor import nn
-from jseg.utils import to_2tuple
+from jseg.utils.helpers import to_2tuple
 
 
 class AdaptivePadding(nn.Module):
