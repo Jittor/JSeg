@@ -1,6 +1,6 @@
 import jittor as jt
 from jittor import nn
-from jseg.ops import ConvModule
+from jseg.bricks import ConvModule
 
 from jseg.ops import resize
 from jseg.utils.registry import HEADS
@@ -45,12 +45,12 @@ class SegFormerHead(BaseDecodeHead):
 
         self.linear_fuse = ConvModule(in_channels=embedding_dim * 4,
                                       out_channels=embedding_dim,
-                                      kernel_size=1)
+                                      kernel_size=1,
+                                      norm_cfg=self.norm_cfg)
 
         self.linear_pred = nn.Conv2d(embedding_dim,
                                      self.num_classes,
                                      kernel_size=1)
-        del self.conv_seg
 
     def execute(self, inputs):
         x = self._transform_inputs(inputs)  # len=4, 1/4,1/8,1/16,1/32

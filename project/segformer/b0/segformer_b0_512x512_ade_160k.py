@@ -1,8 +1,7 @@
-_base_ = [
-    '../../_base_/datasets/ade20k.py', '../../_base_/default_runtime.py'
-]
+_base_ = ['../../_base_/datasets/ade20k.py', '../../_base_/default_runtime.py']
 
 # model settings
+norm_cfg = dict(type='BN')
 model = dict(
     type='EncoderDecoder',
     pretrained='jittorhub://mit_b0.pkl',
@@ -14,6 +13,7 @@ model = dict(
                      channels=128,
                      dropout_ratio=0.1,
                      num_classes=150,
+                     norm_cfg=norm_cfg,
                      align_corners=False,
                      decoder_params=dict(embed_dim=256),
                      loss_decode=dict(type='CrossEntropyLoss',
