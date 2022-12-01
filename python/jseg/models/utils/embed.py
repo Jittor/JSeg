@@ -2,9 +2,11 @@ from typing import Sequence
 import math
 from jittor import nn
 from jseg.utils.helpers import to_2tuple
+from jseg.bricks import build_conv_layer, build_norm_layer, build_activation_layer, build_dropout
 
 
 class AdaptivePadding(nn.Module):
+
     def __init__(self, kernel_size=1, stride=1, dilation=1, padding='corner'):
 
         super(AdaptivePadding, self).__init__()
@@ -46,16 +48,18 @@ class AdaptivePadding(nn.Module):
 
 
 class PatchEmbed(nn.Module):
+
     def __init__(self,
                  in_channels=3,
                  embed_dims=768,
+                 conv_type='Conv2d',
                  kernel_size=16,
                  stride=None,
                  padding='corner',
                  dilation=1,
                  bias=True,
-                 input_size=None,
-                 norm=nn.LayerNorm):
+                 norm_cfg=None,
+                 input_size=None):
         super(PatchEmbed, self).__init__()
 
         self.embed_dims = embed_dims
@@ -77,15 +81,17 @@ class PatchEmbed(nn.Module):
             self.adap_padding = None
         padding = to_2tuple(padding)
 
-        self.projection = nn.Conv2d(in_channels=in_channels,
-                                    out_channels=embed_dims,
-                                    kernel_size=kernel_size,
-                                    stride=stride,
-                                    padding=padding,
-                                    dilation=dilation,
-                                    bias=bias)
-        if norm is not None:
-            self.norm = norm(embed_dims)
+        self.projection = build_conv_layer(dict(type=conv_type),
+                                           in_channels=in_channels,
+                                           out_channels=embed_dims,
+                                           kernel_size=kernel_size,
+                                           stride=stride,
+                                           padding=padding,
+                                           dilation=dilation,
+                                           bias=bias)
+
+        if norm_cfg is not None:
+            self.norm = build_norm_layer(norm_cfg, embed_dims)[1]
         else:
             self.norm = None
 
@@ -136,6 +142,7 @@ class PatchEmbed(nn.Module):
 
 
 class PatchMerging(nn.Module):
+
     def __init__(self,
                  in_channels,
                  out_channels,
@@ -143,7 +150,8 @@ class PatchMerging(nn.Module):
                  stride=None,
                  padding='corner',
                  dilation=1,
-                 bias=False):
+                 bias=False,
+                 norm_cfg=dict(type='LN')):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -167,9 +175,14 @@ class PatchMerging(nn.Module):
             self.adap_padding = None
 
         self.padding = to_2tuple(padding)
+
         sample_dim = self.kernel_size[0] * self.kernel_size[1] * in_channels
 
-        self.norm = nn.LayerNorm(sample_dim)
+        if norm_cfg is not None:
+            self.norm = build_norm_layer(norm_cfg, sample_dim)[1]
+        else:
+            self.norm = None
+
         self.reduction = nn.Linear(sample_dim, out_channels, bias=bias)
 
     def execute(self, x, input_size):
@@ -223,13 +236,14 @@ class PatchMerging(nn.Module):
 
 
 class FFN(nn.Module):
+
     def __init__(self,
                  embed_dims=256,
                  feedexecute_channels=1024,
                  num_fcs=2,
-                 act_fun=nn.ReLU(),
+                 act_cfg=dict(type='ReLU', inplace=True),
                  ffn_drop=0.,
-                 drop_prob=None,
+                 dropout_layer=None,
                  add_identity=True,
                  **kwargs):
         super().__init__()
@@ -238,7 +252,8 @@ class FFN(nn.Module):
         self.embed_dims = embed_dims
         self.feedexecute_channels = feedexecute_channels
         self.num_fcs = num_fcs
-        self.activate = act_fun
+        self.act_cfg = act_cfg
+        self.activate = build_activation_layer(act_cfg)
 
         layers = []
         in_channels = embed_dims
@@ -250,7 +265,8 @@ class FFN(nn.Module):
         layers.append(nn.Linear(feedexecute_channels, embed_dims))
         layers.append(nn.Dropout(ffn_drop))
         self.layers = nn.Sequential(*layers)
-        self.dropout_layer = nn.DropPath(drop_prob)
+        self.dropout_layer = build_dropout(
+            dropout_layer) if dropout_layer else nn.Identity()
         self.add_identity = add_identity
 
     def execute(self, x, identity=None):

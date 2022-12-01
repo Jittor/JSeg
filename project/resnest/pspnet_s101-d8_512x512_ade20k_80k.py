@@ -4,6 +4,7 @@ _base_ = [
 ]
 
 # model settings
+norm_cfg = dict(type='BN')
 model = dict(
     type='EncoderDecoder',
     pretrained='jittorhub://resnest101.pkl',
@@ -17,6 +18,7 @@ model = dict(
                   out_indices=(0, 1, 2, 3),
                   dilations=(1, 1, 2, 4),
                   strides=(1, 2, 1, 1),
+                  norm_cfg=norm_cfg,
                   norm_eval=False,
                   contract_dilation=True),
     decode_head=dict(type='PSPHead',
@@ -26,6 +28,7 @@ model = dict(
                      pool_scales=(1, 2, 3, 6),
                      dropout_ratio=0.1,
                      num_classes=150,
+                     norm_cfg=norm_cfg,
                      align_corners=False,
                      loss_decode=dict(type='CrossEntropyLoss',
                                       use_sigmoid=False,
@@ -38,6 +41,7 @@ model = dict(
                         concat_input=False,
                         dropout_ratio=0.1,
                         num_classes=150,
+                        norm_cfg=norm_cfg,
                         align_corners=False,
                         loss_decode=dict(type='CrossEntropyLoss',
                                          use_sigmoid=False,

@@ -1,6 +1,7 @@
 import jittor as jt
 from jittor import nn
 from jseg.utils.registry import BACKBONES
+from jseg.bricks import build_conv_layer, build_norm_layer
 
 
 class ResLayer(nn.Sequential):
@@ -12,6 +13,8 @@ class ResLayer(nn.Sequential):
                  stride=1,
                  dilation=1,
                  avg_down=False,
+                 conv_cfg=None,
+                 norm_cfg=dict(type='BN'),
                  multi_grid=None,
                  contract_dilation=False,
                  **kwargs):
@@ -29,12 +32,13 @@ class ResLayer(nn.Sequential):
                                  ceil_mode=True,
                                  count_include_pad=False))
             downsample.extend([
-                nn.Conv2d(inplanes,
-                          planes * block.expansion,
-                          kernel_size=1,
-                          stride=conv_stride,
-                          bias=False),
-                nn.BatchNorm2d(planes * block.expansion)
+                build_conv_layer(conv_cfg,
+                                 inplanes,
+                                 planes * block.expansion,
+                                 kernel_size=1,
+                                 stride=conv_stride,
+                                 bias=False),
+                build_norm_layer(norm_cfg, planes * block.expansion)[1]
             ])
             downsample = nn.Sequential(*downsample)
 
@@ -74,41 +78,58 @@ class BasicBlock(nn.Module):
                  stride=1,
                  dilation=1,
                  downsample=None,
+                 conv_cfg=None,
+                 norm_cfg=dict(type='BN'),
                  dcn=None):
         super(BasicBlock, self).__init__()
         assert dcn is None, 'Not implemented yet.'
 
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.bn2 = nn.BatchNorm2d(planes)
+        self.norm1_name, norm1 = build_norm_layer(norm_cfg, planes, postfix=1)
+        self.norm2_name, norm2 = build_norm_layer(norm_cfg, planes, postfix=2)
 
-        self.conv1 = nn.Conv2d(inplanes,
-                               planes,
-                               kernel_size=3,
-                               stride=stride,
-                               padding=dilation,
-                               dilation=dilation,
-                               bias=False)
-        self.conv2 = nn.Conv2d(planes,
-                               planes,
-                               kernel_size=3,
-                               padding=1,
-                               bias=False)
+        self.conv1 = build_conv_layer(conv_cfg,
+                                      inplanes,
+                                      planes,
+                                      3,
+                                      stride=stride,
+                                      padding=dilation,
+                                      dilation=dilation,
+                                      bias=False)
+        setattr(self, self.norm1_name, norm1)
+        self.conv2 = build_conv_layer(conv_cfg,
+                                      planes,
+                                      planes,
+                                      3,
+                                      padding=1,
+                                      bias=False)
+        setattr(self, self.norm2_name, norm2)
 
         self.relu = nn.ReLU()
         self.downsample = downsample
         self.stride = stride
         self.dilation = dilation
 
+    @property
+    def norm1(self):
+        """nn.Module: normalization layer after the first convolution layer"""
+        return getattr(self, self.norm1_name)
+
+    @property
+    def norm2(self):
+        """nn.Module: normalization layer after the second convolution layer"""
+        return getattr(self, self.norm2_name)
+
     def execute(self, x):
+
         def _inner_execute(x):
             identity = x
 
             out = self.conv1(x)
-            out = self.bn1(out)
+            out = self.norm1(out)
             out = self.relu(out)
 
             out = self.conv2(out)
-            out = self.bn2(out)
+            out = self.norm2(out)
 
             if self.downsample is not None:
                 identity = self.downsample(x)
@@ -134,6 +155,8 @@ class Bottleneck(nn.Module):
                  stride=1,
                  dilation=1,
                  downsample=None,
+                 conv_cfg=None,
+                 norm_cfg=dict(type='BN'),
                  dcn=None):
         super(Bottleneck, self).__init__()
         assert dcn is None or isinstance(dcn, dict)
@@ -142,63 +165,96 @@ class Bottleneck(nn.Module):
         self.planes = planes
         self.stride = stride
         self.dilation = dilation
+        self.conv_cfg = conv_cfg
+        self.norm_cfg = norm_cfg
         self.dcn = dcn
         self.with_dcn = dcn is not None
 
         self.conv1_stride = 1
         self.conv2_stride = stride
 
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.bn3 = nn.BatchNorm2d(planes * self.expansion)
+        self.norm1_name, norm1 = build_norm_layer(norm_cfg, planes, postfix=1)
+        self.norm2_name, norm2 = build_norm_layer(norm_cfg, planes, postfix=2)
+        self.norm3_name, norm3 = build_norm_layer(norm_cfg,
+                                                  planes * self.expansion,
+                                                  postfix=3)
 
         self.conv1 = nn.Conv2d(inplanes,
                                planes,
                                kernel_size=1,
                                stride=self.conv1_stride,
                                bias=False)
+        self.conv1 = build_conv_layer(conv_cfg,
+                                      inplanes,
+                                      planes,
+                                      kernel_size=1,
+                                      stride=self.conv1_stride,
+                                      bias=False)
+        setattr(self, self.norm1_name, norm1)
         fallback_on_stride = False
         if self.with_dcn:
             fallback_on_stride = dcn.pop('fallback_on_stride', False)
         if not self.with_dcn or fallback_on_stride:
-            self.conv2 = nn.Conv2d(planes,
-                                   planes,
-                                   kernel_size=3,
-                                   stride=self.conv2_stride,
-                                   padding=dilation,
-                                   dilation=dilation,
-                                   bias=False)
+            self.conv2 = build_conv_layer(conv_cfg,
+                                          planes,
+                                          planes,
+                                          kernel_size=3,
+                                          stride=self.conv2_stride,
+                                          padding=dilation,
+                                          dilation=dilation,
+                                          bias=False)
         else:
-            self.conv2 = nn.Conv2d(planes,
-                                   planes,
-                                   kernel_size=3,
-                                   stride=self.conv2_stride,
-                                   padding=dilation,
-                                   dilation=dilation,
-                                   bias=False)
+            assert self.conv_cfg is None, 'conv_cfg must be None for DCN'
+            self.conv2 = build_conv_layer(dcn,
+                                          planes,
+                                          planes,
+                                          kernel_size=3,
+                                          stride=self.conv2_stride,
+                                          padding=dilation,
+                                          dilation=dilation,
+                                          bias=False)
 
-        self.conv3 = nn.Conv2d(planes,
-                               planes * self.expansion,
-                               kernel_size=1,
-                               bias=False)
+        setattr(self, self.norm2_name, norm2)
+        self.conv3 = build_conv_layer(conv_cfg,
+                                      planes,
+                                      planes * self.expansion,
+                                      kernel_size=1,
+                                      bias=False)
+        setattr(self, self.norm3_name, norm3)
 
         self.relu = nn.ReLU()
         self.downsample = downsample
 
+    @property
+    def norm1(self):
+        """nn.Module: normalization layer after the first convolution layer"""
+        return getattr(self, self.norm1_name)
+
+    @property
+    def norm2(self):
+        """nn.Module: normalization layer after the second convolution layer"""
+        return getattr(self, self.norm2_name)
+
+    @property
+    def norm3(self):
+        """nn.Module: normalization layer after the third convolution layer"""
+        return getattr(self, self.norm3_name)
+
     def execute(self, x):
+
         def _inner_execute(x):
             identity = x
 
             out = self.conv1(x)
-            out = self.bn1(out)
+            out = self.norm1(out)
             out = self.relu(out)
 
             out = self.conv2(out)
-            out = self.bn2(out)
+            out = self.norm2(out)
             out = self.relu(out)
 
             out = self.conv3(out)
-            out = self.bn3(out)
+            out = self.norm3(out)
 
             if self.downsample is not None:
                 identity = self.downsample(x)
@@ -236,6 +292,8 @@ class ResNet(nn.Module):
                  deep_stem=False,
                  avg_down=False,
                  frozen_stages=-1,
+                 conv_cfg=None,
+                 norm_cfg=dict(type='BN', requires_grad=True),
                  norm_eval=False,
                  dcn=None,
                  stage_with_dcn=(False, False, False, False),
@@ -258,6 +316,8 @@ class ResNet(nn.Module):
         self.deep_stem = deep_stem
         self.avg_down = avg_down
         self.frozen_stages = frozen_stages
+        self.conv_cfg = conv_cfg
+        self.norm_cfg = norm_cfg
         self.norm_eval = norm_eval
         self.dcn = dcn
         self.stage_with_dcn = stage_with_dcn
@@ -289,6 +349,8 @@ class ResNet(nn.Module):
                 stride=stride,
                 dilation=dilation,
                 avg_down=self.avg_down,
+                conv_cfg=conv_cfg,
+                norm_cfg=norm_cfg,
                 dcn=dcn,
                 multi_grid=stage_multi_grid,
                 contract_dilation=contract_dilation)
@@ -307,39 +369,53 @@ class ResNet(nn.Module):
         """Pack all blocks in a stage into a ``ResLayer``."""
         return ResLayer(**kwargs)
 
+    @property
+    def norm1(self):
+        """nn.Module: the normalization layer named "norm1" """
+        return getattr(self, self.norm1_name)
+
     def _make_stem_layer(self, in_channels, stem_channels):
         """Make stem layer for ResNet."""
         if self.deep_stem:
             self.stem = nn.Sequential(
-                nn.Conv2d(in_channels,
-                          stem_channels // 2,
-                          kernel_size=3,
-                          stride=2,
-                          padding=1,
-                          bias=False), nn.BatchNorm2d(stem_channels // 2),
+                build_conv_layer(self.conv_cfg,
+                                 in_channels,
+                                 stem_channels // 2,
+                                 kernel_size=3,
+                                 stride=2,
+                                 padding=1,
+                                 bias=False),
+                build_norm_layer(self.norm_cfg, stem_channels // 2)[1],
                 nn.ReLU(),
-                nn.Conv2d(stem_channels // 2,
-                          stem_channels // 2,
-                          kernel_size=3,
-                          stride=1,
-                          padding=1,
-                          bias=False), nn.BatchNorm2d(stem_channels // 2),
+                build_conv_layer(self.conv_cfg,
+                                 stem_channels // 2,
+                                 stem_channels // 2,
+                                 kernel_size=3,
+                                 stride=1,
+                                 padding=1,
+                                 bias=False),
+                build_norm_layer(self.norm_cfg, stem_channels // 2)[1],
                 nn.ReLU(),
-                nn.Conv2d(stem_channels // 2,
-                          stem_channels,
-                          kernel_size=3,
-                          stride=1,
-                          padding=1,
-                          bias=False), nn.BatchNorm2d(stem_channels),
-                nn.ReLU())
+                build_conv_layer(self.conv_cfg,
+                                 stem_channels // 2,
+                                 stem_channels,
+                                 kernel_size=3,
+                                 stride=1,
+                                 padding=1,
+                                 bias=False),
+                build_norm_layer(self.norm_cfg, stem_channels)[1], nn.ReLU())
         else:
-            self.conv1 = nn.Conv2d(in_channels,
-                                   stem_channels,
-                                   kernel_size=7,
-                                   stride=2,
-                                   padding=3,
-                                   bias=False)
-            self.bn1 = nn.BatchNorm2d(stem_channels),
+            self.conv1 = build_conv_layer(self.conv_cfg,
+                                          in_channels,
+                                          stem_channels,
+                                          kernel_size=7,
+                                          stride=2,
+                                          padding=3,
+                                          bias=False)
+            self.norm1_name, norm1 = build_norm_layer(self.norm_cfg,
+                                                      stem_channels,
+                                                      postfix=1)
+            setattr(self, self.norm1_name, norm1)
             self.relu = nn.ReLU()
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
@@ -350,8 +426,8 @@ class ResNet(nn.Module):
                 for param in self.stem.parameters():
                     param.requires_grad = False
             else:
-                self.bn1.eval()
-                for m in [self.conv1, self.bn1]:
+                self.norm1.eval()
+                for m in [self.conv1, self.norm1]:
                     for param in m.parameters():
                         param.requires_grad = False
 
@@ -370,7 +446,7 @@ class ResNet(nn.Module):
             x = self.stem(x)
         else:
             x = self.conv1(x)
-            x = self.bn1(x)
+            x = self.norm1(x)
             x = self.relu(x)
         x = self.maxpool(x)
         outs = []
@@ -393,6 +469,7 @@ class ResNet(nn.Module):
 
 @BACKBONES.register_module()
 class ResNetV1c(ResNet):
+
     def __init__(self, **kwargs):
         super(ResNetV1c, self).__init__(deep_stem=True,
                                         avg_down=False,
@@ -401,6 +478,7 @@ class ResNetV1c(ResNet):
 
 @BACKBONES.register_module()
 class ResNetV1d(ResNet):
+
     def __init__(self, **kwargs):
         super(ResNetV1d, self).__init__(deep_stem=True,
                                         avg_down=True,

@@ -1,5 +1,5 @@
 from jittor import Module, nn
-from jseg.ops import ConvModule
+from jseg.bricks import ConvModule
 
 
 class External_attention(Module):

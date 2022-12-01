@@ -1,6 +1,6 @@
 import jittor as jt
 from jittor import nn
-from jseg.ops import ConvModule
+from jseg.bricks import ConvModule
 
 from jseg.utils.registry import HEADS
 from .decode_head import BaseDecodeHead
@@ -25,27 +25,39 @@ class FCNHead(BaseDecodeHead):
         conv_padding = (kernel_size // 2) * dilation
         convs = []
         convs.append(
-            ConvModule(self.in_channels,
-                       self.channels,
-                       kernel_size=kernel_size,
-                       padding=conv_padding,
-                       dilation=dilation))
+            ConvModule(
+                self.in_channels,
+                self.channels,
+                kernel_size=kernel_size,
+                padding=conv_padding,
+                dilation=dilation,
+                conv_cfg=self.conv_cfg,
+                norm_cfg=self.norm_cfg,
+                act_cfg=self.act_cfg))
         for i in range(num_convs - 1):
             convs.append(
-                ConvModule(self.channels,
-                           self.channels,
-                           kernel_size=kernel_size,
-                           padding=conv_padding,
-                           dilation=dilation))
+                ConvModule(
+                    self.channels,
+                    self.channels,
+                    kernel_size=kernel_size,
+                    padding=conv_padding,
+                    dilation=dilation,
+                    conv_cfg=self.conv_cfg,
+                    norm_cfg=self.norm_cfg,
+                    act_cfg=self.act_cfg))
         if num_convs == 0:
             self.convs = nn.Identity()
         else:
             self.convs = nn.Sequential(*convs)
         if self.concat_input:
-            self.conv_cat = ConvModule(self.in_channels + self.channels,
-                                       self.channels,
-                                       kernel_size=kernel_size,
-                                       padding=kernel_size // 2)
+            self.conv_cat = ConvModule(
+                self.in_channels + self.channels,
+                self.channels,
+                kernel_size=kernel_size,
+                padding=kernel_size // 2,
+                conv_cfg=self.conv_cfg,
+                norm_cfg=self.norm_cfg,
+                act_cfg=self.act_cfg)
 
     def _execute_feature(self, inputs):
         x = self._transform_inputs(inputs)

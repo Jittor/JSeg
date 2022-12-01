@@ -1,12 +1,13 @@
 import jittor as jt
 from jittor import nn
-import collections
 from jseg.ops import resize
 from jseg.utils.registry import HEADS
+from jseg.bricks import ConvModule
 from .decode_head import BaseDecodeHead
 
 
 class _MatrixDecomposition2DBase(nn.Module):
+
     def __init__(self, args=dict()):
         super().__init__()
 
@@ -99,6 +100,7 @@ class _MatrixDecomposition2DBase(nn.Module):
 
 
 class NMF2D(_MatrixDecomposition2DBase):
+
     def __init__(self, args=dict()):
         super().__init__(args)
 
@@ -140,21 +142,27 @@ class NMF2D(_MatrixDecomposition2DBase):
 
 
 class Hamburger(nn.Module):
-    def __init__(self, ham_channels=512, ham_kwargs=dict(), **kwargs):
+
+    def __init__(self,
+                 ham_channels=512,
+                 ham_kwargs=dict(),
+                 norm_cfg=None,
+                 **kwargs):
         super().__init__()
 
-        self.ham_in = nn.Sequential(
-            collections.OrderedDict([('conv',
-                                      nn.Conv2d(ham_channels, ham_channels,
-                                                1))]))
+        self.ham_in = ConvModule(ham_channels,
+                                 ham_channels,
+                                 1,
+                                 norm_cfg=None,
+                                 act_cfg=None)
 
         self.ham = NMF2D(ham_kwargs)
 
-        self.ham_out = nn.Sequential(
-            collections.OrderedDict([('conv',
-                                      nn.Conv2d(ham_channels, ham_channels,
-                                                1)),
-                                     ('gn', nn.GroupNorm(32, ham_channels))]))
+        self.ham_out = ConvModule(ham_channels,
+                                  ham_channels,
+                                  1,
+                                  norm_cfg=norm_cfg,
+                                  act_cfg=None)
 
     def execute(self, x):
         enjoy = self.ham_in(x)
@@ -168,25 +176,27 @@ class Hamburger(nn.Module):
 
 @HEADS.register_module()
 class LightHamHead(BaseDecodeHead):
+
     def __init__(self, ham_channels=512, ham_kwargs=dict(), **kwargs):
         super(LightHamHead, self).__init__(input_transform='multiple_select',
                                            **kwargs)
         self.ham_channels = ham_channels
 
-        self.squeeze = nn.Sequential(
-            collections.OrderedDict([('conv',
-                                      nn.Conv2d(sum(self.in_channels),
-                                                self.ham_channels, 1)),
-                                     ('gn', nn.GroupNorm(32, ham_channels)),
-                                     ('relu', nn.ReLU())]))
+        self.squeeze = ConvModule(sum(self.in_channels),
+                                  self.ham_channels,
+                                  1,
+                                  conv_cfg=self.conv_cfg,
+                                  norm_cfg=self.norm_cfg,
+                                  act_cfg=self.act_cfg)
+
         self.hamburger = Hamburger(ham_channels, ham_kwargs, **kwargs)
 
-        self.align = nn.Sequential(
-            collections.OrderedDict([('conv',
-                                      nn.Conv2d(self.ham_channels,
-                                                self.channels, 1)),
-                                     ('gn', nn.GroupNorm(32, ham_channels)),
-                                     ('relu', nn.ReLU())]))
+        self.align = ConvModule(self.ham_channels,
+                                self.channels,
+                                1,
+                                conv_cfg=self.conv_cfg,
+                                norm_cfg=self.norm_cfg,
+                                act_cfg=self.act_cfg)
 
     def execute(self, inputs):
         inputs = self._transform_inputs(inputs)

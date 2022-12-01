@@ -4,9 +4,11 @@ from jittor import nn
 from jseg.utils.helpers import to_2tuple
 from jseg.utils.registry import BACKBONES
 from jseg.utils.weight_init import trunc_normal_init, normal_init, constant_init
+from jseg.bricks import build_norm_layer
 
 
 class Mlp(nn.Module):
+
     def __init__(self,
                  in_features,
                  hidden_features=None,
@@ -35,7 +37,11 @@ class Mlp(nn.Module):
 
 
 class StemConv(nn.Module):
-    def __init__(self, in_channels, out_channels):
+
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 norm_cfg=dict(type='BN')):
         super(StemConv, self).__init__()
 
         self.proj = nn.Sequential(
@@ -44,14 +50,14 @@ class StemConv(nn.Module):
                       kernel_size=(3, 3),
                       stride=(2, 2),
                       padding=(1, 1)),
-            nn.BatchNorm2d(out_channels // 2),
+            build_norm_layer(norm_cfg, out_channels // 2)[1],
             nn.GELU(),
             nn.Conv2d(out_channels // 2,
                       out_channels,
                       kernel_size=(3, 3),
                       stride=(2, 2),
                       padding=(1, 1)),
-            nn.BatchNorm2d(out_channels),
+            build_norm_layer(norm_cfg, out_channels)[1],
         )
 
     def execute(self, x):
@@ -62,6 +68,7 @@ class StemConv(nn.Module):
 
 
 class AttentionModule(nn.Module):
+
     def __init__(self, dim):
         super().__init__()
         self.conv0 = nn.Conv2d(dim, dim, 5, padding=2, groups=dim)
@@ -101,6 +108,7 @@ class AttentionModule(nn.Module):
 
 
 class SpatialAttention(nn.Module):
+
     def __init__(self, d_model):
         super().__init__()
         self.d_model = d_model
@@ -120,18 +128,20 @@ class SpatialAttention(nn.Module):
 
 
 class Block(nn.Module):
+
     def __init__(self,
                  dim,
                  mlp_ratio=4.,
                  drop=0.,
                  drop_path=0.,
-                 act_layer=nn.GELU):
+                 act_layer=nn.GELU,
+                 norm_cfg=dict(type='BN')):
         super().__init__()
-        self.norm1 = nn.BatchNorm2d(dim)
+        self.norm1 = build_norm_layer(norm_cfg, dim)[1]
         self.attn = SpatialAttention(dim)
         self.drop_path = nn.DropPath(
             drop_path) if drop_path > 0. else nn.Identity()
-        self.norm2 = nn.BatchNorm2d(dim)
+        self.norm2 = build_norm_layer(norm_cfg, dim)[1]
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = Mlp(in_features=dim,
                        hidden_features=mlp_hidden_dim,
@@ -157,7 +167,13 @@ class Block(nn.Module):
 class OverlapPatchEmbed(nn.Module):
     """ Image to Patch Embedding
     """
-    def __init__(self, patch_size=7, stride=4, in_chans=3, embed_dim=768):
+
+    def __init__(self,
+                 patch_size=7,
+                 stride=4,
+                 in_chans=3,
+                 embed_dim=768,
+                 norm_cfg=dict(type='BN')):
         super().__init__()
         patch_size = to_2tuple(patch_size)
 
@@ -166,7 +182,7 @@ class OverlapPatchEmbed(nn.Module):
                               kernel_size=patch_size,
                               stride=stride,
                               padding=(patch_size[0] // 2, patch_size[1] // 2))
-        self.norm = nn.BatchNorm2d(embed_dim)
+        self.norm = build_norm_layer(norm_cfg, embed_dim)[1]
 
     def execute(self, x):
         x = self.proj(x)
@@ -180,6 +196,7 @@ class OverlapPatchEmbed(nn.Module):
 
 @BACKBONES.register_module()
 class MSCAN(nn.Module):
+
     def __init__(self,
                  in_chans=3,
                  embed_dims=[64, 128, 256, 512],
@@ -187,7 +204,8 @@ class MSCAN(nn.Module):
                  drop_rate=0.,
                  drop_path_rate=0.,
                  depths=[3, 4, 6, 3],
-                 num_stages=4):
+                 num_stages=4,
+                 norm_cfg=dict(type='BN')):
         super(MSCAN, self).__init__()
 
         self.depths = depths
@@ -199,19 +217,21 @@ class MSCAN(nn.Module):
 
         for i in range(num_stages):
             if i == 0:
-                patch_embed = StemConv(3, embed_dims[0])
+                patch_embed = StemConv(3, embed_dims[0], norm_cfg=norm_cfg)
             else:
                 patch_embed = OverlapPatchEmbed(
                     patch_size=7 if i == 0 else 3,
                     stride=4 if i == 0 else 2,
                     in_chans=in_chans if i == 0 else embed_dims[i - 1],
-                    embed_dim=embed_dims[i])
+                    embed_dim=embed_dims[i],
+                    norm_cfg=norm_cfg)
 
             block = nn.ModuleList([
                 Block(dim=embed_dims[i],
                       mlp_ratio=mlp_ratios[i],
                       drop=drop_rate,
-                      drop_path=dpr[cur + j]) for j in range(depths[i])
+                      drop_path=dpr[cur + j],
+                      norm_cfg=norm_cfg) for j in range(depths[i])
             ])
             norm = nn.LayerNorm(embed_dims[i])
             cur += depths[i]
@@ -257,6 +277,7 @@ class MSCAN(nn.Module):
 
 
 class DWConv(nn.Module):
+
     def __init__(self, dim=768):
         super(DWConv, self).__init__()
         self.dwconv = nn.Conv2d(dim, dim, 3, 1, 1, bias=True, groups=dim)

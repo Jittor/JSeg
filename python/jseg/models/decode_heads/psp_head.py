@@ -1,6 +1,6 @@
 import jittor as jt
 from jittor import nn
-from jseg.ops import ConvModule
+from jseg.bricks import ConvModule
 
 from jseg.ops import resize
 from jseg.utils.registry import HEADS
@@ -8,16 +8,28 @@ from .decode_head import BaseDecodeHead
 
 
 class PPM(nn.ModuleList):
-    def __init__(self, pool_scales, in_channels, channels, align_corners):
+
+    def __init__(self, pool_scales, in_channels, channels, conv_cfg, norm_cfg,
+                 act_cfg, align_corners, **kwargs):
         super(PPM, self).__init__()
         self.pool_scales = pool_scales
         self.align_corners = align_corners
         self.in_channels = in_channels
         self.channels = channels
+        self.conv_cfg = conv_cfg
+        self.norm_cfg = norm_cfg
+        self.act_cfg = act_cfg
         for pool_scale in pool_scales:
             self.append(
-                nn.Sequential(nn.AdaptiveAvgPool2d(pool_scale),
-                              ConvModule(self.in_channels, self.channels, 1)))
+                nn.Sequential(
+                    nn.AdaptiveAvgPool2d(pool_scale),
+                    ConvModule(self.in_channels,
+                               self.channels,
+                               1,
+                               conv_cfg=self.conv_cfg,
+                               norm_cfg=self.norm_cfg,
+                               act_cfg=self.act_cfg,
+                               **kwargs)))
 
     def execute(self, x):
         ppm_outs = []
@@ -33,6 +45,7 @@ class PPM(nn.ModuleList):
 
 @HEADS.register_module()
 class PSPHead(BaseDecodeHead):
+
     def __init__(self, pool_scales=(1, 2, 3, 6), **kwargs):
         super(PSPHead, self).__init__(**kwargs)
         assert isinstance(pool_scales, (list, tuple))
@@ -40,12 +53,18 @@ class PSPHead(BaseDecodeHead):
         self.psp_modules = PPM(self.pool_scales,
                                self.in_channels,
                                self.channels,
+                               conv_cfg=self.conv_cfg,
+                               norm_cfg=self.norm_cfg,
+                               act_cfg=self.act_cfg,
                                align_corners=self.align_corners)
         self.bottleneck = ConvModule(self.in_channels +
                                      len(pool_scales) * self.channels,
                                      self.channels,
                                      3,
-                                     padding=1)
+                                     padding=1,
+                                     conv_cfg=self.conv_cfg,
+                                     norm_cfg=self.norm_cfg,
+                                     act_cfg=self.act_cfg)
 
     def execute(self, inputs):
         x = self._transform_inputs(inputs)

@@ -1,7 +1,8 @@
 import jittor as jt
 from jittor import nn
 
-from jseg.ops import ConvModule, resize
+from jseg.bricks import ConvModule
+from jseg.ops import resize
 
 from jseg.utils.registry import HEADS
 from .decode_head import BaseDecodeHead
@@ -15,18 +16,25 @@ class ASPPModule(nn.ModuleList):
         channels (int): Channels after modules, before conv_seg.
     """
 
-    def __init__(self, dilations, in_channels, channels):
+    def __init__(self, dilations, in_channels, channels, conv_cfg, norm_cfg,
+                 act_cfg):
         super(ASPPModule, self).__init__()
         self.dilations = dilations
         self.in_channels = in_channels
         self.channels = channels
+        self.conv_cfg = conv_cfg
+        self.norm_cfg = norm_cfg
+        self.act_cfg = act_cfg
         for dilation in dilations:
             self.append(
                 ConvModule(self.in_channels,
                            self.channels,
                            1 if dilation == 1 else 3,
                            dilation=dilation,
-                           padding=0 if dilation == 1 else dilation))
+                           padding=0 if dilation == 1 else dilation,
+                           conv_cfg=self.conv_cfg,
+                           norm_cfg=self.norm_cfg,
+                           act_cfg=self.act_cfg))
 
     def execute(self, x):
         aspp_outs = []
@@ -52,13 +60,25 @@ class ASPPHead(BaseDecodeHead):
         self.dilations = dilations
         self.image_pool = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
-            ConvModule(self.in_channels, self.channels, 1))
-        self.aspp_modules = ASPPModule(dilations, self.in_channels,
-                                       self.channels)
+            ConvModule(self.in_channels,
+                       self.channels,
+                       1,
+                       conv_cfg=self.conv_cfg,
+                       norm_cfg=self.norm_cfg,
+                       act_cfg=self.act_cfg))
+        self.aspp_modules = ASPPModule(dilations,
+                                       self.in_channels,
+                                       self.channels,
+                                       conv_cfg=self.conv_cfg,
+                                       norm_cfg=self.norm_cfg,
+                                       act_cfg=self.act_cfg)
         self.bottleneck = ConvModule((len(dilations) + 1) * self.channels,
                                      self.channels,
                                      3,
-                                     padding=1)
+                                     padding=1,
+                                     conv_cfg=self.conv_cfg,
+                                     norm_cfg=self.norm_cfg,
+                                     act_cfg=self.act_cfg)
 
     def _execute_feature(self, inputs):
         x = self._transform_inputs(inputs)

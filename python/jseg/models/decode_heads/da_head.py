@@ -1,6 +1,6 @@
 import jittor as jt
 from jittor import nn
-from jseg.ops import ConvModule
+from jseg.bricks import ConvModule
 
 from jseg.utils.general import add_prefix
 from jseg.utils.registry import HEADS
@@ -23,7 +23,10 @@ class PAM(SelfAttentionBlock):
             value_out_num_convs=1,
             value_out_norm=False,
             matmul_norm=False,
-            with_out=False)
+            with_out=False,
+            conv_cfg=None,
+            norm_cfg=None,
+            act_cfg=None)
 
         self.gamma = Scale(0)
 
@@ -67,13 +70,19 @@ class DAHead(BaseDecodeHead):
             self.in_channels,
             self.channels,
             3,
-            padding=1)
+            padding=1,
+            conv_cfg=self.conv_cfg,
+            norm_cfg=self.norm_cfg,
+            act_cfg=self.act_cfg)
         self.pam = PAM(self.channels, pam_channels)
         self.pam_out_conv = ConvModule(
             self.channels,
             self.channels,
             3,
-            padding=1)
+            padding=1,
+            conv_cfg=self.conv_cfg,
+            norm_cfg=self.norm_cfg,
+            act_cfg=self.act_cfg)
         self.pam_conv_seg = nn.Conv2d(
             self.channels, self.num_classes, kernel_size=1)
 
@@ -81,13 +90,19 @@ class DAHead(BaseDecodeHead):
             self.in_channels,
             self.channels,
             3,
-            padding=1)
+            padding=1,
+            conv_cfg=self.conv_cfg,
+            norm_cfg=self.norm_cfg,
+            act_cfg=self.act_cfg)
         self.cam = CAM()
         self.cam_out_conv = ConvModule(
             self.channels,
             self.channels,
             3,
-            padding=1)
+            padding=1,
+            conv_cfg=self.conv_cfg,
+            norm_cfg=self.norm_cfg,
+            act_cfg=self.act_cfg)
         self.cam_conv_seg = nn.Conv2d(
             self.channels, self.num_classes, kernel_size=1)
 

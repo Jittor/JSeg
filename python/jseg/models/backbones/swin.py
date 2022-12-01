@@ -5,11 +5,13 @@ import jittor as jt
 from jittor import nn
 from jseg.utils.helpers import to_2tuple
 from jseg.utils.registry import BACKBONES
+from jseg.bricks import build_norm_layer, build_dropout
 from jseg.utils.weight_init import trunc_normal_init, constant_init, trunc_normal_
 from ..utils.embed import PatchEmbed, PatchMerging, FFN
 
 
 class WindowMSA(nn.Module):
+
     def __init__(self,
                  embed_dims,
                  num_heads,
@@ -34,7 +36,8 @@ class WindowMSA(nn.Module):
         # About 2x faster than original impl
         Wh, Ww = self.window_size
         rel_index_coords = self.double_step_seq(2 * Ww - 1, Wh, 1, Ww)
-        rel_position_index = rel_index_coords + rel_index_coords.transpose(0, 1)
+        rel_position_index = rel_index_coords + rel_index_coords.transpose(
+            0, 1)
         rel_position_index = rel_position_index.flip(1)
         # self.register_buffer('relative_position_index', rel_position_index)
         self.relative_position_index = rel_position_index
@@ -95,6 +98,7 @@ class WindowMSA(nn.Module):
 
 
 class ShiftWindowMSA(nn.Module):
+
     def __init__(self,
                  embed_dims,
                  num_heads,
@@ -104,7 +108,7 @@ class ShiftWindowMSA(nn.Module):
                  qk_scale=None,
                  attn_drop_rate=0,
                  proj_drop_rate=0,
-                 drop_prob=0.):
+                 dropout_layer=dict(type='DropPath', p=0.)):
         super().__init__()
 
         self.window_size = window_size
@@ -119,7 +123,7 @@ class ShiftWindowMSA(nn.Module):
                                attn_drop_rate=attn_drop_rate,
                                proj_drop_rate=proj_drop_rate)
 
-        self.drop = nn.DropPath(drop_prob)
+        self.drop = build_dropout(dropout_layer)
 
     def execute(self, query, hw_shape):
         B, L, C = query.shape
@@ -215,6 +219,7 @@ class ShiftWindowMSA(nn.Module):
 
 
 class SwinBlock(nn.Module):
+
     def __init__(self,
                  embed_dims,
                  num_heads,
@@ -225,11 +230,13 @@ class SwinBlock(nn.Module):
                  qk_scale=None,
                  drop_rate=0.,
                  attn_drop_rate=0.,
-                 drop_path_rate=0.):
+                 drop_path_rate=0.,
+                 act_cfg=dict(type='GELU'),
+                 norm_cfg=dict(type='LN')):
 
         super(SwinBlock, self).__init__()
 
-        self.norm1 = nn.LayerNorm(embed_dims)
+        self.norm1 = build_norm_layer(norm_cfg, embed_dims)[1]
         self.attn = ShiftWindowMSA(embed_dims=embed_dims,
                                    num_heads=num_heads,
                                    window_size=window_size,
@@ -238,18 +245,20 @@ class SwinBlock(nn.Module):
                                    qk_scale=qk_scale,
                                    attn_drop_rate=attn_drop_rate,
                                    proj_drop_rate=drop_rate,
-                                   drop_prob=drop_path_rate)
+                                   dropout_layer=dict(type='DropPath',
+                                                      p=drop_path_rate))
 
-        self.norm2 = nn.LayerNorm(embed_dims)
+        self.norm2 = build_norm_layer(norm_cfg, embed_dims)[1]
         self.ffn = FFN(embed_dims=embed_dims,
                        feedexecute_channels=feedexecute_channels,
                        num_fcs=2,
                        ffn_drop=drop_rate,
-                       drop_prob=drop_path_rate,
-                       act_fun=nn.GELU(),
+                       dropout_layer=dict(type='DropPath', p=drop_path_rate),
+                       act_cfg=act_cfg,
                        add_identity=True)
 
     def execute(self, x, hw_shape):
+
         def _inner_execute(x):
             identity = x
             x = self.norm1(x)
@@ -269,6 +278,7 @@ class SwinBlock(nn.Module):
 
 
 class SwinBlockSequence(nn.Module):
+
     def __init__(self,
                  embed_dims,
                  num_heads,
@@ -280,7 +290,9 @@ class SwinBlockSequence(nn.Module):
                  drop_rate=0.,
                  attn_drop_rate=0.,
                  drop_path_rate=0.,
-                 downsample=None):
+                 downsample=None,
+                 act_cfg=dict(type='GELU'),
+                 norm_cfg=dict(type='LN')):
         super().__init__()
 
         if isinstance(drop_path_rate, list):
@@ -300,7 +312,10 @@ class SwinBlockSequence(nn.Module):
                               qk_scale=qk_scale,
                               drop_rate=drop_rate,
                               attn_drop_rate=attn_drop_rate,
-                              drop_path_rate=drop_path_rates[i])
+                              drop_path_rate=drop_path_rates[i],
+                              act_cfg=act_cfg,
+                              norm_cfg=norm_cfg)
+
             self.blocks.append(block)
 
         self.downsample = downsample
@@ -318,6 +333,7 @@ class SwinBlockSequence(nn.Module):
 
 @BACKBONES.register_module()
 class SwinTransformer(nn.Module):
+
     def __init__(self,
                  pretrain_img_size=224,
                  in_channels=3,
@@ -331,10 +347,13 @@ class SwinTransformer(nn.Module):
                  out_indices=(0, 1, 2, 3),
                  qkv_bias=True,
                  qk_scale=None,
+                 patch_norm=True,
                  drop_rate=0.,
                  attn_drop_rate=0.,
                  drop_path_rate=0.1,
                  use_abs_pos_embed=False,
+                 act_cfg=dict(type='GELU'),
+                 norm_cfg=dict(type='LN'),
                  frozen_stages=-1):
         self.frozen_stages = frozen_stages
 
@@ -355,11 +374,15 @@ class SwinTransformer(nn.Module):
 
         assert strides[0] == patch_size, 'Use non-overlapping patch embed.'
 
-        self.patch_embed = PatchEmbed(in_channels=in_channels,
-                                      embed_dims=embed_dims,
-                                      kernel_size=patch_size,
-                                      stride=strides[0],
-                                      padding='corner')
+        self.patch_embed = PatchEmbed(
+            in_channels=in_channels,
+            embed_dims=embed_dims,
+            conv_type='Conv2d',
+            kernel_size=patch_size,
+            stride=strides[0],
+            padding='corner',
+            norm_cfg=norm_cfg if patch_norm else None,
+        )
 
         if self.use_abs_pos_embed:
             patch_row = pretrain_img_size[0] // patch_size
@@ -378,9 +401,12 @@ class SwinTransformer(nn.Module):
         in_channels = embed_dims
         for i in range(num_layers):
             if i < num_layers - 1:
-                downsample = PatchMerging(in_channels=in_channels,
-                                          out_channels=2 * in_channels,
-                                          stride=strides[i + 1])
+                downsample = PatchMerging(
+                    in_channels=in_channels,
+                    out_channels=2 * in_channels,
+                    stride=strides[i + 1],
+                    norm_cfg=norm_cfg if patch_norm else None,
+                )
             else:
                 downsample = None
 
@@ -395,7 +421,11 @@ class SwinTransformer(nn.Module):
                 drop_rate=drop_rate,
                 attn_drop_rate=attn_drop_rate,
                 drop_path_rate=dpr[sum(depths[:i]):sum(depths[:i + 1])],
-                downsample=downsample)
+                downsample=downsample,
+                act_cfg=act_cfg,
+                norm_cfg=norm_cfg,
+            )
+
             self.stages.append(stage)
             if downsample:
                 in_channels = downsample.out_channels
@@ -403,7 +433,7 @@ class SwinTransformer(nn.Module):
         self.num_features = [int(embed_dims * 2**i) for i in range(num_layers)]
         # Add a norm layer for each output
         for i in out_indices:
-            layer = nn.LayerNorm(self.num_features[i])
+            layer = build_norm_layer(norm_cfg, self.num_features[i])[1]
             layer_name = f'norm{i}'
             setattr(self, layer_name, layer)
 

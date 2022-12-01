@@ -18,6 +18,9 @@ class BaseDecodeHead(nn.Module, metaclass=ABCMeta):
                  out_channels=None,
                  threshold=None,
                  dropout_ratio=0.1,
+                 conv_cfg=None,
+                 norm_cfg=None,
+                 act_cfg=dict(type='ReLU'),
                  in_index=-1,
                  input_transform=None,
                  decoder_params=None,
@@ -31,6 +34,9 @@ class BaseDecodeHead(nn.Module, metaclass=ABCMeta):
         self._init_inputs(in_channels, in_index, input_transform)
         self.channels = channels
         self.dropout_ratio = dropout_ratio
+        self.conv_cfg = conv_cfg
+        self.norm_cfg = norm_cfg
+        self.act_cfg = act_cfg
         self.in_index = in_index
 
         self.ignore_index = ignore_index

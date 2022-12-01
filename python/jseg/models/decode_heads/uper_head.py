@@ -1,6 +1,6 @@
 import jittor as jt
 from jittor import nn
-from jseg.ops import ConvModule
+from jseg.bricks import ConvModule
 
 from jseg.ops import resize
 from jseg.utils.registry import HEADS
@@ -10,6 +10,7 @@ from .psp_head import PPM
 
 @HEADS.register_module()
 class UPerHead(BaseDecodeHead):
+
     def __init__(self, pool_scales=(1, 2, 3, 6), **kwargs):
         super(UPerHead, self).__init__(input_transform='multiple_select',
                                        **kwargs)
@@ -17,25 +18,47 @@ class UPerHead(BaseDecodeHead):
         self.psp_modules = PPM(pool_scales,
                                self.in_channels[-1],
                                self.channels,
+                               conv_cfg=self.conv_cfg,
+                               norm_cfg=self.norm_cfg,
+                               act_cfg=self.act_cfg,
                                align_corners=self.align_corners)
         self.bottleneck = ConvModule(self.in_channels[-1] +
                                      len(pool_scales) * self.channels,
                                      self.channels,
                                      3,
-                                     padding=1)
+                                     padding=1,
+                                     conv_cfg=self.conv_cfg,
+                                     norm_cfg=self.norm_cfg,
+                                     act_cfg=self.act_cfg)
         # FPN Module
         self.lateral_convs = nn.ModuleList()
         self.fpn_convs = nn.ModuleList()
         for in_channels in self.in_channels[:-1]:  # skip the top layer
-            l_conv = ConvModule(in_channels, self.channels, 1)
-            fpn_conv = ConvModule(self.channels, self.channels, 3, padding=1)
+            l_conv = ConvModule(in_channels,
+                                self.channels,
+                                1,
+                                conv_cfg=self.conv_cfg,
+                                norm_cfg=self.norm_cfg,
+                                act_cfg=self.act_cfg)
+            fpn_conv = ConvModule(
+                self.channels,
+                self.channels,
+                3,
+                padding=1,
+                conv_cfg=self.conv_cfg,
+                norm_cfg=self.norm_cfg,
+                act_cfg=self.act_cfg,
+            )
             self.lateral_convs.append(l_conv)
             self.fpn_convs.append(fpn_conv)
 
         self.fpn_bottleneck = ConvModule(len(self.in_channels) * self.channels,
                                          self.channels,
                                          3,
-                                         padding=1)
+                                         padding=1,
+                                         conv_cfg=self.conv_cfg,
+                                         norm_cfg=self.norm_cfg,
+                                         act_cfg=self.act_cfg)
 
     def psp_execute(self, inputs):
         """execute function of PSP module."""

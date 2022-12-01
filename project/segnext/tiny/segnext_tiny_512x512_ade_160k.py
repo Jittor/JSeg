@@ -1,8 +1,10 @@
 _base_ = [
-    '../../_base_/datasets/ade20k.py', '../../_base_/default_runtime.py',
+    '../../_base_/datasets/ade20k.py',
+    '../../_base_/default_runtime.py',
 ]
 
 # model settings
+norm_cfg = dict(type='GN', num_groups=32)
 model = dict(
     type='EncoderDecoder',
     pretrained='jittorhub://mscan_t.pkl',
@@ -18,6 +20,7 @@ model = dict(
                      channels=256,
                      dropout_ratio=0.1,
                      num_classes=150,
+                     norm_cfg=norm_cfg,
                      align_corners=False,
                      loss_decode=dict(type='CrossEntropyLoss',
                                       use_sigmoid=False,

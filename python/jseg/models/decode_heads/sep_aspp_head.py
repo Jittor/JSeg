@@ -1,6 +1,7 @@
 import jittor as jt
 from jittor import nn
-from jseg.ops import ConvModule, resize, DepthwiseSeparableConvModule
+from jseg.ops import resize
+from jseg.bricks import ConvModule, DepthwiseSeparableConvModule
 from jseg.utils.registry import HEADS
 from .aspp_head import ASPPHead
 
@@ -9,11 +10,13 @@ class DepthwiseSeparableASPPModule(nn.ModuleList):
     """Atrous Spatial Pyramid Pooling (ASPP) Module with depthwise separable
     conv."""
 
-    def __init__(self, dilations, in_channels, channels):
+    def __init__(self, dilations, in_channels, channels, norm_cfg, act_cfg):
         super(DepthwiseSeparableASPPModule, self).__init__()
         self.dilations = dilations
         self.in_channels = in_channels
         self.channels = channels
+        self.norm_cfg = norm_cfg
+        self.act_cfg = act_cfg
         for i, dilation in enumerate(self.dilations):
             if dilation == 1:
                 self.append(
@@ -21,14 +24,18 @@ class DepthwiseSeparableASPPModule(nn.ModuleList):
                                self.channels,
                                1,
                                dilation=dilation,
-                               padding=0))
+                               padding=0,
+                               norm_cfg=self.norm_cfg,
+                               act_cfg=self.act_cfg))
             if dilation > 1:
                 self.append(
                     DepthwiseSeparableConvModule(self.in_channels,
                                                  self.channels,
                                                  3,
                                                  dilation=dilation,
-                                                 padding=dilation))
+                                                 padding=dilation,
+                                                 norm_cfg=self.norm_cfg,
+                                                 act_cfg=self.act_cfg))
 
     def execute(self, x):
         aspp_outs = []
@@ -55,20 +62,32 @@ class DepthwiseSeparableASPPHead(ASPPHead):
         self.aspp_modules = DepthwiseSeparableASPPModule(
             dilations=self.dilations,
             in_channels=self.in_channels,
-            channels=self.channels)
+            channels=self.channels,
+            conv_cfg=self.conv_cfg,
+            norm_cfg=self.norm_cfg,
+            act_cfg=self.act_cfg)
         if c1_in_channels > 0:
-            self.c1_bottleneck = ConvModule(c1_in_channels, c1_channels, 1)
+            self.c1_bottleneck = ConvModule(c1_in_channels,
+                                            c1_channels,
+                                            1,
+                                            conv_cfg=self.conv_cfg,
+                                            norm_cfg=self.norm_cfg,
+                                            act_cfg=self.act_cfg)
         else:
             self.c1_bottleneck = None
         self.sep_bottleneck = nn.Sequential(
             DepthwiseSeparableConvModule(self.channels + c1_channels,
                                          self.channels,
                                          3,
-                                         padding=1),
+                                         padding=1,
+                                         norm_cfg=self.norm_cfg,
+                                         act_cfg=self.act_cfg),
             DepthwiseSeparableConvModule(self.channels,
                                          self.channels,
                                          3,
-                                         padding=1))
+                                         padding=1,
+                                         norm_cfg=self.norm_cfg,
+                                         act_cfg=self.act_cfg))
 
     def execute(self, inputs):
         """execute function."""
