@@ -4,7 +4,7 @@ _base_ = [
 ]
 
 # model settings
-norm_cfg = dict(type='BN')
+norm_cfg = dict(type='GN', num_groups=32)
 model = dict(
     type='EncoderDecoder',
     pretrained='jittorhub://mscan_s.pkl',
