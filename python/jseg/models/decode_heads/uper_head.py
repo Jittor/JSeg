@@ -40,15 +40,13 @@ class UPerHead(BaseDecodeHead):
                                 conv_cfg=self.conv_cfg,
                                 norm_cfg=self.norm_cfg,
                                 act_cfg=self.act_cfg)
-            fpn_conv = ConvModule(
-                self.channels,
-                self.channels,
-                3,
-                padding=1,
-                conv_cfg=self.conv_cfg,
-                norm_cfg=self.norm_cfg,
-                act_cfg=self.act_cfg,
-            )
+            fpn_conv = ConvModule(self.channels,
+                                  self.channels,
+                                  3,
+                                  padding=1,
+                                  conv_cfg=self.conv_cfg,
+                                  norm_cfg=self.norm_cfg,
+                                  act_cfg=self.act_cfg)
             self.lateral_convs.append(l_conv)
             self.fpn_convs.append(fpn_conv)
 

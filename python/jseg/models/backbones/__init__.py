@@ -5,3 +5,6 @@ from .swin import SwinTransformer
 from .resnext import ResNeXt
 from .resnest import ResNeSt
 from .convnext import ConvNeXt
+from .vit import VisionTransformer
+from .beit import BEiT
+from .mae import MAE
