@@ -13,7 +13,7 @@ from jseg.utils.weight_init import trunc_normal_init, normal_init, constant_init
 class LayerNorm2d(nn.LayerNorm):
     """LayerNorm on channels for 2d images.
     Args:
-        num_channels (int): The number of channels of the input tensor.
+        num_channels (int): The number of channels of the input Var.
         eps (float): a value added to the denominator for numerical stability.
             Defaults to 1e-5.
         elementwise_affine (bool): a boolean value that when set to ``True``,
@@ -27,7 +27,7 @@ class LayerNorm2d(nn.LayerNorm):
 
     def execute(self, x):
         assert x.ndim == 4, 'LayerNorm2d only supports inputs with shape ' \
-            f'(N, C, H, W), but got tensor with shape {x.shape}'
+            f'(N, C, H, W), but got Var with shape {x.shape}'
         return nn.layer_norm(x.permute(0, 2, 3,
                                        1), self.normalized_shape, self.weight,
                              self.bias, self.eps).permute(0, 3, 1, 2)
@@ -118,7 +118,7 @@ class ConvNeXtBlock(nn.Module):
 @BACKBONES.register_module()
 class ConvNeXt(nn.Module):
     """ConvNeXt.
-    A PyTorch implementation of : `A ConvNet for the 2020s
+    A Jittor implementation of : `A ConvNet for the 2020s
     <https://arxiv.org/pdf/2201.03545.pdf>`_
     Modified from the `official repo
     <https://github.com/facebookresearch/ConvNeXt/blob/main/models/convnext.py>`_

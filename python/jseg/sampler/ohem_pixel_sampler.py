@@ -52,7 +52,6 @@ class OHEMPixelSampler(BasePixelSampler):
                         ignore_index=self.context.ignore_index,
                         reduction_override='none')
 
-                # faster than topk according to https://github.com/pytorch/pytorch/issues/22812  # noqa
                 sort_indices, _ = losses[valid_mask].argsort(descending=True)
                 valid_seg_weight[sort_indices[:batch_kept]] = 1.
 

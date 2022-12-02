@@ -145,7 +145,7 @@ def parse_losses(losses):
             _losses[loss_name] = sum(_loss.mean() for _loss in loss_value)
         else:
             raise TypeError(
-                '{} is not a tensor or list of tensors'.format(loss_name))
+                '{} is not a Var or list of Vars'.format(loss_name))
 
     total_loss = sum(_value for _key, _value in _losses.items()
                      if 'loss' in _key)

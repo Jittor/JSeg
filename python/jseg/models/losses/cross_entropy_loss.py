@@ -55,7 +55,7 @@ class CrossEntropyLoss(nn.Module):
             warnings.warn(
                 'Default ``avg_non_ignore`` is False, if you would like to '
                 'ignore the certain label and average loss over non-ignore '
-                'labels, which is the same with PyTorch official '
+                'labels, which is the same with Jittor official '
                 'cross_entropy, set ``avg_non_ignore=True``.')
 
         self.cls_criterion = cross_entropy

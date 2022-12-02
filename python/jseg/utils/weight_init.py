@@ -112,8 +112,6 @@ def kaiming_init(module,
 
 
 def caffe2_xavier_init(module, bias=0):
-    # `XavierFill` in Caffe2 corresponds to `kaiming_uniform_` in PyTorch
-    # Acknowledgment to FAIR's internal code
     kaiming_init(module,
                  a=1,
                  mode='fan_in',

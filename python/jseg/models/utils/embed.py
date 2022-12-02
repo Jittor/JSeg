@@ -120,12 +120,12 @@ class PatchEmbed(nn.Module):
     def execute(self, x):
         """
         Args:
-            x (Tensor): Has shape (B, C, H, W). In most case, C is 3.
+            x (Var): Has shape (B, C, H, W). In most case, C is 3.
 
         Returns:
             tuple: Contains merged results and its spatial shape.
 
-                - x (Tensor): Has shape (B, out_h * out_w, embed_dims)
+                - x (Var): Has shape (B, out_h * out_w, embed_dims)
                 - out_size (tuple[int]): Spatial shape of x, arrange as
                     (out_h, out_w).
         """
@@ -188,14 +188,14 @@ class PatchMerging(nn.Module):
     def execute(self, x, input_size):
         """
         Args:
-            x (Tensor): Has shape (B, H*W, C_in).
+            x (Var): Has shape (B, H*W, C_in).
             input_size (tuple[int]): The spatial shape of x, arrange as (H, W).
                 Default: None.
 
         Returns:
             tuple: Contains merged results and its spatial shape.
 
-                - x (Tensor): Has shape (B, Merged_H * Merged_W, C_out)
+                - x (Var): Has shape (B, Merged_H * Merged_W, C_out)
                 - out_size (tuple[int]): Spatial shape of x, arrange as
                     (Merged_H, Merged_W).
         """

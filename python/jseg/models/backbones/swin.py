@@ -55,8 +55,8 @@ class WindowMSA(nn.Module):
         """
         Args:
 
-            x (tensor): input features with shape of (num_windows*B, N, C)
-            mask (tensor | None, Optional): mask with shape of (num_windows,
+            x (Var): input features with shape of (num_windows*B, N, C)
+            mask (Var | None, Optional): mask with shape of (num_windows,
                 Wh*Ww, Wh*Ww), value should be between (-inf, 0].
         """
         B, N, C = x.shape
