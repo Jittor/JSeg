@@ -118,7 +118,7 @@ if __name__ == "__main__":
 - :heavy_check_mark: [Swin Transformer (ICCV'2021)](project/swin)
 - :heavy_check_mark: [ConvNeXt (CVPR'2022)](project/convnext)
 - :heavy_check_mark: [BEiT (ICLR'2022)](project/beit)
-- :heavy_check_mark: [MAE (CVPR'2022))](project/mae)
+- :heavy_check_mark: [MAE (CVPR'2022)](project/mae)
 
 ### Supported methods:
 - :heavy_check_mark: [FCN (CVPR'2015/TPAMI'2017)](project/fcn)
