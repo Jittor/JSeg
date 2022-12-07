@@ -128,6 +128,7 @@ if __name__ == "__main__":
 - :heavy_check_mark: [UPerNet (ECCV'2018)](project/upernet)
 - :heavy_check_mark: [DANet (CVPR'2019)](project/danet)
 - :heavy_check_mark: [CCNet (ICCV'2019)](project/ccnet)
+- :heavy_check_mark: [PointRend (CVPR'2020)](project/point_rend)
 - :heavy_check_mark: [SegFormer (NeurIPS'2021)](project/segformer)
 - :heavy_check_mark: [EANet (TPAMI)](project/eanet)
 - :heavy_check_mark: [SegNeXt (NeurIPS'2022)](project/segnext)

@@ -9,6 +9,7 @@ from .base import BaseSegmentor
 
 @MODELS.register_module()
 class EncoderDecoder(BaseSegmentor):
+
     def __init__(self,
                  backbone,
                  decode_head,
@@ -56,7 +57,11 @@ class EncoderDecoder(BaseSegmentor):
 
         super(EncoderDecoder, self).init_weights(pretrained)
         self.backbone.init_weights(pretrained=pretrained)
-        self.decode_head.init_weights()
+        if isinstance(self.decode_head, nn.ModuleList):
+            for decode_head in self.decode_head:
+                decode_head.init_weights()
+        else:
+            self.decode_head.init_weights()
         if self.with_auxiliary_head:
             if isinstance(self.auxiliary_head, nn.ModuleList):
                 for aux_head in self.auxiliary_head:
