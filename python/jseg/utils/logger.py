@@ -17,7 +17,7 @@ class TextLogger:
 
     def log(self, data):
         msg = ",".join([f"{k}:{d}" for k, d in data.items()])
-        msg = current_time() + msg + "\n"
+        msg = current_time() + ' ' + msg + "\n"
         self.log_file.write(msg)
         self.log_file.flush()
 

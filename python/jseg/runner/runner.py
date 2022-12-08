@@ -3,7 +3,7 @@ import jittor as jt
 from tqdm import tqdm
 import jseg
 import datetime
-from jseg.config import get_cfg, save_cfg
+from jseg.config import get_cfg, save_cfg, print_cfg
 from jseg.utils.registry import build_from_cfg, MODELS, SCHEDULERS, DATASETS, HOOKS, OPTIMS
 from jseg.utils.general import build_file, current_time, sync, check_file, check_interval, parse_losses, search_ckpt, np2tmp
 from jseg.utils.visualize import visualize_result
@@ -27,12 +27,21 @@ class Runner:
         self.resume_path = cfg.resume_path
         self.efficient_val = cfg.efficient_val
 
+        self.logger = build_from_cfg(self.cfg.logger,
+                                     HOOKS,
+                                     work_dir=self.work_dir)
+
         self.model = build_from_cfg(cfg.model, MODELS)
+        if jt.rank == 0:
+            print_cfg()
+            self.logger.log({'model': self.model})
+
         if (cfg.parameter_groups_generator):
             params = build_from_cfg(cfg.parameter_groups_generator,
                                     MODELS,
                                     named_params=self.model.named_parameters(),
-                                    model=self.model)
+                                    model=self.model,
+                                    logger=self.logger)
         else:
             params = self.model.parameters()
         self.optimizer = build_from_cfg(cfg.optimizer, OPTIMS, params=params)
@@ -44,10 +53,6 @@ class Runner:
                                             drop_last=jt.in_mpi)
         self.val_dataset = build_from_cfg(cfg.dataset.val, DATASETS)
         self.test_dataset = build_from_cfg(cfg.dataset.test, DATASETS)
-
-        self.logger = build_from_cfg(self.cfg.logger,
-                                     HOOKS,
-                                     work_dir=self.work_dir)
 
         save_file = build_file(self.work_dir, prefix="config.yaml")
         save_cfg(save_file)
@@ -62,9 +67,6 @@ class Runner:
                 self.total_iter = 0
         else:
             self.total_iter = self.max_iter
-
-        if jt.rank == 0:
-            self.logger.print_log(self.model)
 
         if (cfg.pretrained_weights):
             self.load(cfg.pretrained_weights, model_only=True)
