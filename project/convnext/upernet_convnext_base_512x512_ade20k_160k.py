@@ -1,12 +1,13 @@
 _base_ = [
-    '../_base_/datasets/ade20k.py', '../_base_/default_runtime.py',
-    '../_base_/schedules/schedule_160k.py'
+    '../_base_/datasets/ade20k.py',
+    '../_base_/default_runtime.py',
 ]
 
 # model settings
 model = dict(
     type='EncoderDecoder',
-    pretrained='jittorhub://convnext-base_3rdparty_32xb128-noema_in1k_20220301-2a0ee547.pkl',
+    pretrained=
+    'jittorhub://convnext-base_3rdparty_32xb128-noema_in1k_20220301-2a0ee547.pkl',
     backbone=dict(type='ConvNeXt',
                   arch='base',
                   out_indices=[0, 1, 2, 3],
@@ -40,9 +41,12 @@ model = dict(
     train_cfg=dict(),
     test_cfg=dict(mode='slide', crop_size=(512, 512), stride=(341, 341)))
 
-# TODO
-parameter_groups_generator = dict(type="CustomPrameterGroupsGenerator",
-                                  custom_keys={})
+parameter_groups_generator = dict(type="LRDecayParameterGroupsGenerator",
+                                  paramwise_cfg={
+                                      'decay_rate': 0.9,
+                                      'decay_type': 'stage_wise',
+                                      'num_layers': 12
+                                  })
 
 optimizer = dict(
     type='CustomAdamW',

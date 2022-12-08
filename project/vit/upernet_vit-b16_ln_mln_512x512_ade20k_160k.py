@@ -60,9 +60,12 @@ model = dict(
     train_cfg=dict(),
     test_cfg=dict(mode='whole'))  # yapf: disable
 
-# TODO
 parameter_groups_generator = dict(type="CustomPrameterGroupsGenerator",
-                                  custom_keys={})
+                                  custom_keys={
+                                      'pos_embed': dict(decay_mult=0.),
+                                      'cls_token': dict(decay_mult=0.),
+                                      'norm': dict(decay_mult=0.)
+                                  })
 
 optimizer = dict(
     type='CustomAdamW',

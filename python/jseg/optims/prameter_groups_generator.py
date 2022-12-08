@@ -2,7 +2,7 @@ from jseg.utils.registry import MODELS
 
 
 @MODELS.register_module()
-def CustomPrameterGroupsGenerator(named_params, model, custom_keys=[]):
+def CustomPrameterGroupsGenerator(named_params, model, custom_keys={}, logger=None):
     def get_custom_parameter_groups(name):
         for ck in custom_keys.keys():
             if ck in name:

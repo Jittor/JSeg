@@ -52,9 +52,9 @@ model = dict(
     train_cfg=dict(),
     test_cfg=dict(mode='slide', crop_size=(640, 640), stride=(426, 426)))
 
-# TODO
-parameter_groups_generator = dict(type="CustomPrameterGroupsGenerator",
-                                  custom_keys={})
+parameter_groups_generator = dict(type="LRDecayParameterGroupsGenerator",
+                                  paramwise_cfg=dict(num_layers=12,
+                                                     decay_rate=0.9))
 
 optimizer = dict(
     type='CustomAdamW',
