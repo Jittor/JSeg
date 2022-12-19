@@ -126,6 +126,7 @@ if __name__ == "__main__":
 - :heavy_check_mark: [DeepLabV3 (ArXiv'2017)](project/deeplabv3)
 - :heavy_check_mark: [DeepLabV3+ (CVPR'2018)](project/deeplabv3plus)
 - :heavy_check_mark: [UPerNet (ECCV'2018)](project/upernet)
+- :heavy_check_mark: [NonLocal Net (CVPR'2018)](project/nonlocal_net)
 - :heavy_check_mark: [DANet (CVPR'2019)](project/danet)
 - :heavy_check_mark: [CCNet (ICCV'2019)](project/ccnet)
 - :heavy_check_mark: [PointRend (CVPR'2020)](project/point_rend)

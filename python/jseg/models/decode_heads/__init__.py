@@ -10,3 +10,4 @@ from .aspp_head import ASPPHead
 from .sep_aspp_head import DepthwiseSeparableASPPHead
 from .point_head import PointHead
 from .fpn_head import FPNHead
+from .nl_head import NonLocal2d
