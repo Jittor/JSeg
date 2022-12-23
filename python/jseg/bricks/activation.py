@@ -14,6 +14,34 @@ for module in [
         ACTIVATION_LAYERS.register_module(module=module)
 
 
+@ACTIVATION_LAYERS.register_module()
+class HSigmoid(nn.Module):
+
+    def __init__(self, bias=3.0, divisor=6.0, min_value=0.0, max_value=1.0):
+        super().__init__()
+        self.bias = bias
+        self.divisor = divisor
+        assert self.divisor != 0
+        self.min_value = min_value
+        self.max_value = max_value
+
+    def execute(self, x):
+        x = (x + self.bias) / self.divisor
+
+        return x.clamp_(self.min_value, self.max_value)
+
+
+@ACTIVATION_LAYERS.register_module()
+class HSwish(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+        self.act = nn.ReLU6()
+
+    def execute(self, x):
+        return x * self.act(x + 3) / 6
+
+
 @ACTIVATION_LAYERS.register_module(name='Clip')
 @ACTIVATION_LAYERS.register_module()
 class Clamp(nn.Module):

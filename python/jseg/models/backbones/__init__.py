@@ -8,3 +8,4 @@ from .convnext import ConvNeXt
 from .vit import VisionTransformer
 from .beit import BEiT
 from .mae import MAE
+from .mobilenet_v2 import MobileNetV2
