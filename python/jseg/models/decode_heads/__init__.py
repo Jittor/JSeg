@@ -13,3 +13,4 @@ from .fpn_head import FPNHead
 from .nl_head import NonLocal2d
 # from .lraspp_head import LRASPPHead
 from .gc_head import GCHead
+from .ema_head import EMAHead

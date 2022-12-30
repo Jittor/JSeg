@@ -130,6 +130,7 @@ if __name__ == "__main__":
 - :heavy_check_mark: [NonLocal Net (CVPR'2018)](project/nonlocal_net)
 - :heavy_check_mark: [DANet (CVPR'2019)](project/danet)
 - :heavy_check_mark: [CCNet (ICCV'2019)](project/ccnet)
+- :heavy_check_mark: [EMANet (ICCV'2019)](project/ccnet)
 - :heavy_check_mark: [GCNet (ICCVW'2019/TPAMI'2020)](project/ccnet)
 - :heavy_check_mark: [PointRend (CVPR'2020)](project/point_rend)
 - :heavy_check_mark: [SegFormer (NeurIPS'2021)](project/segformer)
