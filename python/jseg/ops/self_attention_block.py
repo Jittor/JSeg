@@ -32,7 +32,8 @@ class SelfAttentionBlock(nn.Module):
     def __init__(self, key_in_channels, query_in_channels, channels,
                  out_channels, share_key_query, query_downsample,
                  key_downsample, key_query_num_convs, value_out_num_convs,
-                 key_query_norm, value_out_norm, matmul_norm, with_out):
+                 key_query_norm, value_out_norm, matmul_norm, with_out,
+                 conv_cfg, norm_cfg, act_cfg):
         super(SelfAttentionBlock, self).__init__()
         if share_key_query:
             assert key_in_channels == query_in_channels
@@ -41,10 +42,16 @@ class SelfAttentionBlock(nn.Module):
         self.out_channels = out_channels
         self.channels = channels
         self.share_key_query = share_key_query
+        self.conv_cfg = conv_cfg
+        self.norm_cfg = norm_cfg
+        self.act_cfg = act_cfg
         self.key_project = self.build_project(key_in_channels,
                                               channels,
                                               num_convs=key_query_num_convs,
-                                              use_conv_module=key_query_norm)
+                                              use_conv_module=key_query_norm,
+                                              conv_cfg=conv_cfg,
+                                              norm_cfg=norm_cfg,
+                                              act_cfg=act_cfg)
         if share_key_query:
             self.query_project = self.key_project
         else:
@@ -52,18 +59,27 @@ class SelfAttentionBlock(nn.Module):
                 query_in_channels,
                 channels,
                 num_convs=key_query_num_convs,
-                use_conv_module=key_query_norm)
+                use_conv_module=key_query_norm,
+                conv_cfg=conv_cfg,
+                norm_cfg=norm_cfg,
+                act_cfg=act_cfg)
         self.value_project = self.build_project(
             key_in_channels,
             channels if with_out else out_channels,
             num_convs=value_out_num_convs,
-            use_conv_module=value_out_norm)
+            use_conv_module=value_out_norm,
+            conv_cfg=conv_cfg,
+            norm_cfg=norm_cfg,
+            act_cfg=act_cfg)
         if with_out:
             self.out_project = self.build_project(
                 channels,
                 out_channels,
                 num_convs=value_out_num_convs,
-                use_conv_module=value_out_norm)
+                use_conv_module=value_out_norm,
+                conv_cfg=conv_cfg,
+                norm_cfg=norm_cfg,
+                act_cfg=act_cfg)
         else:
             self.out_project = None
 
@@ -79,12 +95,26 @@ class SelfAttentionBlock(nn.Module):
             if not isinstance(self.out_project, ConvModule):
                 constant_init(self.out_project, 0)
 
-    def build_project(self, in_channels, channels, num_convs, use_conv_module):
+    def build_project(self, in_channels, channels, num_convs, use_conv_module,
+                      conv_cfg, norm_cfg, act_cfg):
         """Build projection layer for key/query/value/out."""
         if use_conv_module:
-            convs = [ConvModule(in_channels, channels, 1)]
+            convs = [
+                ConvModule(in_channels,
+                           channels,
+                           1,
+                           conv_cfg=conv_cfg,
+                           norm_cfg=norm_cfg,
+                           act_cfg=act_cfg)
+            ]
             for _ in range(num_convs - 1):
-                convs.append(ConvModule(channels, channels, 1))
+                convs.append(
+                    ConvModule(channels,
+                               channels,
+                               1,
+                               conv_cfg=conv_cfg,
+                               norm_cfg=norm_cfg,
+                               act_cfg=act_cfg))
         else:
             convs = [nn.Conv2d(in_channels, channels, 1)]
             for _ in range(num_convs - 1):
