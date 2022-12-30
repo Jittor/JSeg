@@ -11,3 +11,5 @@ from .sep_aspp_head import DepthwiseSeparableASPPHead
 from .point_head import PointHead
 from .fpn_head import FPNHead
 from .nl_head import NonLocal2d
+# from .lraspp_head import LRASPPHead
+from .gc_head import GCHead
