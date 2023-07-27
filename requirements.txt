@@ -9,3 +9,4 @@ tqdm
 terminaltables
 requests
 scipy
+prettytable
