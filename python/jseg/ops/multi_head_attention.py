@@ -1,10 +1,11 @@
 import warnings
-import jittor as jt
 from jittor import nn
 from jseg.bricks import build_dropout
+from .mha import MultiheadAttention as MultiheadAttention_
 
 
 class MultiheadAttention(nn.Module):
+    # same with mmcv version
     def __init__(self,
                  embed_dims,
                  num_heads,
@@ -19,11 +20,10 @@ class MultiheadAttention(nn.Module):
         self.num_heads = num_heads
         self.batch_first = batch_first
 
-        # TODO: jt.attention.MultiheadAttention have inconsistent with torch.nn.MultiheadAttention
-        self.attn = jt.attention.MultiheadAttention(embed_dims,
-                                                    num_heads,
-                                                    dropout=attn_drop,
-                                                    **kwargs)
+        self.attn = MultiheadAttention_(embed_dims,
+                                        num_heads,
+                                        dropout=attn_drop,
+                                        **kwargs)
 
         self.proj_drop = nn.Dropout(proj_drop)
         self.dropout_layer = build_dropout(

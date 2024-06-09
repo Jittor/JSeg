@@ -9,3 +9,5 @@ from .vit import VisionTransformer
 from .beit import BEiT
 from .mae import MAE
 from .mobilenet_v2 import MobileNetV2
+from .clip_encoder_rlb import CLIPVisionTransformerWithRLB
+from .clip_text_encoder import CLIPTextEncoder

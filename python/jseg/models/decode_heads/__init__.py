@@ -15,3 +15,4 @@ from .nl_head import NonLocal2d
 from .gc_head import GCHead
 from .ema_head import EMAHead
 from .ann_head import ANNHead
+from .cliprc_head import ATMSingleHeadSeg
