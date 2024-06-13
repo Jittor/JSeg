@@ -3,7 +3,7 @@
 
 The repository contains official Jittor implementations of the paper: Exploring Regional Clues in CLIP for Zero-Shot Semantic Segmentation. 
 
-The paper is in [**Here**]().
+The paper is in [**Here**](https://openaccess.thecvf.com/content/CVPR2024/papers/Zhang_Exploring_Regional_Clues_in_CLIP_for_Zero-Shot_Semantic_Segmentation_CVPR_2024_paper.pdf).
 
 **Notes**: CLIP-ViT-B-16 Pre-trained models can be found in [there](https://bhpan.buaa.edu.cn/link/AA95601A0FBCA5403485078A0160952FEC)
 
