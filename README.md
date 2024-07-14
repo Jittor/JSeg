@@ -1,6 +1,7 @@
 # JSeg
 
 **02/27/2024**
+
 **[CLIP-RC](project/clip_rc) have been accepted by CVPR2024**
 
 **09/27/2022**
